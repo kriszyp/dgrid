@@ -1,4 +1,5 @@
-define(["dojo/_base/declare", "dojo/_base/lang", "dojo/_base/Deferred", "dojo/on", "put-selector/put", "./List"], function(declare, lang, Deferred, listen, put, List){
+define(["dojo/_base/declare", "dojo/_base/Deferred", "dojo/on", "put-selector/put", "./List"], function(declare, Deferred, listen, put, List){
+function QueryOptions(){}
 return declare([List], {
 	create: function(params, srcNodeRef){
 		this.inherited(arguments);
@@ -141,8 +142,6 @@ return declare([List], {
 		var priorPreload, preloadNode = this.preloadNode;
 		var lastScrollTop = this.lastScrollTop;
 		this.lastScrollTop = visibleTop;
-
-
 		function removeDistantNodes(grid, preloadNode, distanceOff, traversal, below){
 			// we check to see the the nodes are "far off"
 			var farOffRemoval = grid.farOffRemoval;
@@ -185,7 +184,7 @@ return declare([List], {
 		function adjustHeight(preloadNode){
 			var newHeight = preloadNode.count * grid.rowHeight;
 			preloadNode.style.height = (preloadNode.start > 0 ? Math.min(newHeight, grid.maxEmptySpace) : newHeight) + "px";
-		}		
+		}
 		// there can be multiple preloadNodes (if they split, or multiple queries are created),
 		//	so we can traverse them until we find whatever is in the current viewport, making
 		//	sure we don't backtrack
@@ -227,7 +226,8 @@ return declare([List], {
 				}
 				offset = Math.round(offset);
 				count = Math.round(count);
-				var options = this.queryOptions ? lang.delegate(this.queryOptions) : {};
+				QueryOptions.prototype = this.queryOptions || {};
+				var options = new QueryOptions();
 				preloadNode.count -= count;
 				var beforeNode = preloadNode;
 				var keepScrollTo;
