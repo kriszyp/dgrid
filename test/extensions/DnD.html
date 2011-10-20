@@ -6,12 +6,12 @@
 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 		<meta name="viewport" content="width=570" />
 		<style type="text/css">
-			@import "../../dojo/resources/dojo.css";
+			@import "../../../dojo/resources/dojo.css";
 			/* need a theme for some dnd styles (e.g. before/after indicators).
 			   Using tundra because claro has a silly dojoDndItemBefore/After bug
 			*/
-			@import "../../dijit/themes/tundra/tundra.css";
-			@import "../css/skins/tundra.css";
+			@import "../../../dijit/themes/tundra/tundra.css";
+			@import "../../css/skins/tundra.css";
 			.heading {
 				font-weight: bold;
 				padding-bottom: 0.25em;
@@ -19,12 +19,21 @@
 			
 			.clear { clear: both; }
 			
-			#another-target, #another-source {
+			#another-target, #another-source, #invalid-source {
 				float: left;
-				width: 504px;
-				height: 300px;
+				width: 204px;
+				height: 200px;
+				margin-right: 5px;
 				border: 1px solid green;
 			}
+			#another-target .dojoDndItem, #another-source .dojoDndItem, #invalid-source .dojoDndItem {
+				margin: 1px; 
+				padding: 4px 8px;
+				background-color: #eee;
+				border-bottom: 2px solid #9c9;
+				border-top: 2px solid #fff;
+			}
+			
 			#grid1 {
 				height: 200px;
 			}
@@ -40,11 +49,11 @@
 				margin: 10px;
 			}
 		</style>
-		<script type="text/javascript" src="../../dojo/dojo.js" 
+		<script type="text/javascript" src="../../../dojo/dojo.js" 
 			data-dojo-config="async: true"></script>
 		<script type="text/javascript">
-			require(["dojo", "dgrid/List", "dgrid/OnDemandGrid","dgrid/Tree","dgrid/Selection", "dgrid/ColumnResizer", "dgrid/DnD", "dgrid/Keyboard", "dojo/dnd/Source", "dgrid/test/data", "dojo/domReady!"],
-				function(dojo, List, Grid, Tree, Selection, ColumnResizer, DndRow, Keyboard, DnDSource){
+			require(["dojo", "dgrid/List", "dgrid/OnDemandGrid","dgrid/Tree","dgrid/Selection", "dgrid/extensions/DnD", "dgrid/Keyboard", "dojo/dnd/Source", "dgrid/test/data", "dojo/domReady!"],
+				function(dojo, List, Grid, Tree, Selection, DndRow, Keyboard, DnDSource){
 					var
 						DnDGrid = dojo.declare([Grid, Selection, DndRow, Keyboard]),
 						columns = [
@@ -102,6 +111,23 @@
 					source.getObject = function(node){
 						return this.getItem(node.id).data;
 					};
+					
+					var invalidSource = new DnDSource(dojo.byId("invalid-source"), {
+						accept: ["grue"]
+					});
+					invalidSource.insertNodes(false, [
+						{ type: ["grue"], data: new nameObj({
+							order: 10,
+							name: "zork-grue",
+							description: "A sinister, lurking presence in the dark places of the earth.."
+						})},
+						{ type: ["grue"], data: new nameObj({
+							order: 11,
+							name: "ur-grue",
+							description: "Evil god of darkness."
+						})}
+					], false, null);
+					
 					
 					// Set up 2 more grids sharing the same store, to DnD between.
 					// Again, there are many ways to spin this, this is just one way.
@@ -164,6 +190,7 @@
 		<div id="grid2"></div>
 		<div id="another-target">Another Target</div>
 		<div id="another-source">Another Source</div>
+		<div id="invalid-source">An Invalid Source</div>
 		<div class="clear">
 			<h2>Example of 2 grids w/ inter-grid DnD, sharing the same store</h2>
 			<div id="grid3"></div>

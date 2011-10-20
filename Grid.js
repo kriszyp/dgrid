@@ -1,4 +1,4 @@
-define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/query", "./Editor", "./List", "dojo/_base/sniff"], function(has, put, declare, listen, query, Editor, List){
+define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "./Editor", "./List", "dojo/_base/sniff"], function(has, put, declare, listen, Editor, List){
 	var contentBoxSizing = has("ie") < 8 && !has("quirks");
 	
 	function appendIfNode(parent, subNode){
@@ -15,6 +15,7 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/q
 		//		navigation.
 		cellNavigation: true,
 		tabableHeader: true,
+		showHeader: true,
 		column: function(target){
 			// summary:
 			//		Get the column object by node, or event, or a columnId
@@ -176,12 +177,11 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/q
 			}
 			
 			var row = this.createRowCells("th[role=columnheader]", function(th, column){
-				var contentNode = th;
+				var contentNode = column.headerNode = th;
 				if(contentBoxSizing){
 					// we're interested in the th, but we're passed the inner div
 					th = th.parentNode;
 				}
-				column.grid = grid;
 				var field = column.field;
 				if(field){
 					th.field = field;
@@ -238,10 +238,18 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/q
 			
 			this.inherited(arguments);
 			
-			if(contentNode){
-				if((width = headerTableNode.offsetWidth) != contentNode.offsetWidth){
-					// update size of content node if necessary (to match size of rows)
-					contentNode.style.width = width + "px";
+			if(!has("ie") || (has("ie") > 7 && !has("quirks"))){
+				// Force contentNode width to match up with header width.
+				// (Old IEs don't have a problem due to how they layout.)
+				
+				contentNode.style.width = ""; // reset first
+				
+				if(contentNode && headerTableNode){
+					if((width = headerTableNode.offsetWidth) != contentNode.offsetWidth){
+						// update size of content node if necessary (to match size of rows)
+						// (if headerTableNode can't be found, there isn't much we can do)
+						contentNode.style.width = width + "px";
+					}
 				}
 			}
 		},
@@ -252,27 +260,34 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/q
 			
 			// if we were invoked from a header cell click handler, grab
 			// stashed target node; otherwise (e.g. direct sort call) need to look up
-			var target = this._sortNode ||
-				query("#" + this.id + " .dgrid-header .field-" + property)[0];
-			
-			// skip this logic if field being sorted isn't actually displayed
-			if(!target){ return this.inherited(arguments); }
-			
-			target = target.contents || target;
-			if(this._lastSortedArrow){
-				// remove the sort classes from parent node
-				put(this._lastSortedArrow, "<!dgrid-sort-up!dgrid-sort-down");
-				// destroy the lastSortedArrow node
-				put(this._lastSortedArrow, "!");
+			var target = this._sortNode, columns, column, i;
+			if(!target){
+				columns = this.columns;
+				for(i in columns){
+					column = columns[i];
+					if(column.field == property){
+						target = column.headerNode;
+					}
+				}
 			}
-			// place sort arrow under clicked node, and add up/down sort class
-			this._lastSortedArrow = put(target.firstChild, "-div.dgrid-sort-arrow.ui-icon[role=presentation]");
-			this._lastSortedArrow.innerHTML = "&nbsp;";
-			put(target, descending ? ".dgrid-sort-down" : ".dgrid-sort-up");
-			// call resize in case relocation of sort arrow caused any height changes
-			this.resize();
-			
-			delete this._sortNode;
+			// skip this logic if field being sorted isn't actually displayed
+			if(target){
+				target = target.contents || target;
+				if(this._lastSortedArrow){
+					// remove the sort classes from parent node
+					put(this._lastSortedArrow, "<!dgrid-sort-up!dgrid-sort-down");
+					// destroy the lastSortedArrow node
+					put(this._lastSortedArrow, "!");
+				}
+				// place sort arrow under clicked node, and add up/down sort class
+				this._lastSortedArrow = put(target.firstChild, "-div.dgrid-sort-arrow.ui-icon[role=presentation]");
+				this._lastSortedArrow.innerHTML = "&nbsp;";
+				put(target, descending ? ".dgrid-sort-down" : ".dgrid-sort-up");
+				// call resize in case relocation of sort arrow caused any height changes
+				this.resize();
+				
+				delete this._sortNode;
+			}
 			this.inherited(arguments);
 		},
 		styleColumn: function(colId, css){
@@ -297,7 +312,12 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/q
 				columnId = column.id = column.id || (isNaN(columnId) ? columnId : (prefix + columnId));
 				if(prefix){
 					this.columns[columnId] = column;
-				} 
+				}
+				
+				// add reference to this instance to each column object,
+				// for potential use by column plugins
+				column.grid = this;
+				
 				subRow.push(column); // make sure it can be iterated on
 			}
 			return isArray ? rowColumns : subRow;
@@ -321,12 +341,22 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/q
 			this.columns = columns;
 			// re-run logic
 			this.configStructure();
+			this._updateColumns();
+		},
+		setSubRows: function(subrows){
+			this.subRows = subrows;
+			this.configStructure();
+			this._updateColumns();
+		},
+		_updateColumns: function(){
+			// summary:
+			//		Called after e.g. columns, subRows, columnSets are updated
+			
 			this.renderHeader();
 			this.refresh();
 			// re-render last collection if present
 			this.lastCollection && this.renderArray(this.lastCollection);
 			this.resize();
 		}
-		// TODO: setSubRows
 	});
 });
