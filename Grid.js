@@ -258,12 +258,10 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "./Edit
 			// summary:
 			//		Extension of List.js sort to update sort arrow in UI
 			
-			var prop = property, desc = descending;
-			
 			// If a full-on sort array was passed, only handle the first criteria
 			if(typeof property != "string"){
-				prop = property[0].attribute;
-				desc = property[0].descending;
+				descending = property[0].descending;
+				property = property[0].attribute;
 			}
 			
 			// if we were invoked from a header cell click handler, grab
@@ -273,7 +271,7 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "./Edit
 				columns = this.columns;
 				for(i in columns){
 					column = columns[i];
-					if(column.field == prop){
+					if(column.field == property){
 						target = column.headerNode;
 					}
 				}
@@ -290,7 +288,7 @@ define(["dojo/has", "put-selector/put", "dojo/_base/declare", "dojo/on", "./Edit
 				// place sort arrow under clicked node, and add up/down sort class
 				this._lastSortedArrow = put(target.firstChild, "-div.dgrid-sort-arrow.ui-icon[role=presentation]");
 				this._lastSortedArrow.innerHTML = "&nbsp;";
-				put(target, desc ? ".dgrid-sort-down" : ".dgrid-sort-up");
+				put(target, descending ? ".dgrid-sort-down" : ".dgrid-sort-up");
 				// call resize in case relocation of sort arrow caused any height changes
 				this.resize();
 				
