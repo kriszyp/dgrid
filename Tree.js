@@ -1,4 +1,4 @@
-define(["dojo/_base/declare", "put-selector/put", "dojo/_base/Deferred", "dojo/query"], function(declare, put, Deferred, querySelector){// TODO: eliminate the dojo/query dep by supporting simple event delegation in the List module
+define(["dojo/_base/declare", "put-selector/put", "dojo/_base/Deferred", "dojo/query"], function(declare, put, Deferred, querySelector){
 
 return function(column){
     // summary:
@@ -16,8 +16,9 @@ return function(column){
 		var grid = this.grid;
 		var mayHaveChildren = !grid.store.mayHaveChildren || grid.store.mayHaveChildren(object);
 		// create the expando
+		var dir = grid.isRTL ? "right" : "left";
 		var expando = put(td, "div.dgrid-expando-icon" + (mayHaveChildren ? ".ui-icon.ui-icon-triangle-1-e" : "") +
-			"[style=margin-left: " + (level * 19) + "px; float: left]");
+			"[style=margin-" + dir + ": " + (level * 19) + "px; float: " + dir + "]");
 		expando.innerHTML = "&nbsp;"; // for opera to space things properly
 		originalRenderCell.call(this, object, value, td, options);
 		expando.level = level;
@@ -63,8 +64,6 @@ return function(column){
 					}else{
 						container.parentNode.removeChild(container);
 					}
-/*					put(container, (expanded ? "!" : ".") + "dgrid-tree-container-contracted");
-					container.style.display = styleDisplay;// TODO: maybe use a CSS class here*/
 				}
 			});
 		};

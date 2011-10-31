@@ -1,7 +1,10 @@
-define(["put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/aspect", "dojo/has", "dojo/has!touch?./TouchScroll", "xstyle/has-class", "dojo/_base/sniff", "xstyle/css!./css/dgrid.css"], 
+define(["put-selector/put", "dojo/_base/declare", "dojo/on", "dojo/aspect", "dojo/has", "dojo/has!touch?./SimpleTouchScroll", "xstyle/has-class", "dojo/_base/sniff", "xstyle/css!./css/dgrid.css"], 
 function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 	// Add user agent/feature CSS classes 
-	hasClass("mozilla", "opera", "ie-6", "ie-6-7", "quirks", "no-quirks");
+	hasClass("mozilla", "opera", "webkit", "ie-6", "ie-6-7", "quirks", "no-quirks");
+	
+	// Am I webkit? (for RTL)
+	var isWebkit = has("webkit");
 
 	// establish an extra stylesheet which addCssRule calls will use,
 	// plus an array to track actual indices in stylesheet for removal
@@ -146,10 +149,16 @@ function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 			this.observers = [];
 			this._listeners = [];
 			this._rowIdToObject = {};
+			
 		},
 		buildRendering: function(){
 			var domNode = this.domNode;
+			// Detect RTL on html/body nodes; taken from dojo/dom-geometry
+			var isRTL = this.isRTL = (document.body.dir || document.documentElement.dir ||
+				document.body.style.direction).toLowerCase() == "rtl";
+			
 			this.id = domNode.id = domNode.id || this.id || generateId();
+			
 			put(domNode, "[role=grid].ui-widget.dgrid.dgrid-" + this.listType);
 			var headerNode = this.headerNode = put(domNode, 
 				"div.dgrid-header.dgrid-header-row.ui-widget-header" +
@@ -157,8 +166,14 @@ function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 			if(has("quirks") || has("ie") < 8){
 				var spacerNode = put(domNode, "div.dgrid-spacer");
 			}
-			var bodyNode = this.bodyNode = put(domNode, "div.dgrid-scroller");
+			var bodyNode = this.bodyNode = this.touchNode = put(domNode, "div.dgrid-scroller");
+			var grid = this;
 			this.headerScrollNode = put(domNode, "div.dgrid-header-scroll.dgrid-scrollbar-width.ui-widget-header");
+			
+			if(isRTL) {
+				this.domNode.className += " dgrid-rtl" + (isWebkit ? "" : " dgrid-rtl-nonwebkit");
+			}
+			
 			listen(bodyNode, "scroll", function(event){
 				// keep the header aligned with the body
 				headerNode.scrollLeft = bodyNode.scrollLeft;
@@ -169,19 +184,16 @@ function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 			this.renderHeader();
 			
 			this.contentNode = put(this.bodyNode, "div.dgrid-content.ui-widget-content");
-			aspect.after(this, "scrollTo", function(){
-				listen.emit(bodyNode, "scroll", {});
-			});
-			var grid = this;
-			listen(window, "resize", function(){
+			this._listeners.push(listen(window, "resize", function(){
 				grid.resize();
-			});
+			}));
 		},
 		startup: function(){
 			// summary:
 			//		Called automatically after postCreate if the component is already
 			//		visible; otherwise, should be called manually once placed.
 			
+			this.inherited(arguments);
 			if(this._started){ return; } // prevent double-triggering
 			this._started = true;
 			this.resize();
@@ -218,8 +230,8 @@ function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 				bodyNode.style.height =
 					Math.max((this.domNode.offsetHeight - headerNode.offsetHeight), 0) + "px";
 			}
+			
 			if(!scrollbarWidth){
-				
 				// Measure the browser's scrollbar width using a DIV we'll delete right away
 				var scrollDiv = put(document.body, "div.dgrid-scrollbar-measure");
 				scrollbarWidth = scrollDiv.offsetWidth - scrollDiv.clientWidth;
@@ -236,8 +248,11 @@ function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 					// for modern browsers, we can perform a one-time operation which adds
 					// a rule to account for scrollbar width in all grid headers.
 					this.addCssRule(".dgrid-header", "right: " + scrollbarWidth + "px");
+					// add another for RTL grids
+					this.addCssRule(".dgrid-rtl-nonwebkit .dgrid-header", "left: " + scrollbarWidth + "px");
 				}
 			}
+			
 			if(quirks){
 				// old IE doesn't support left + right + width:auto; set width directly
 				headerNode.style.width = bodyNode.clientWidth + "px";
@@ -256,9 +271,22 @@ function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 			}
 		},
 		destroy: function(){
+			var i,
+				nodeRefs = ["domNode", "headerNode", "headerScrollNode", "bodyNode",
+					"contentNode", "preloadNode", "columns", "subRows", "params"];
+			
 			// cleanup listeners
-			for(var i = 0; i < this._listeners.length; i++){
-				this._listeners.remove();
+			for(i = this._listeners.length; i--;){
+				this._listeners[i].remove();
+			}
+			delete this._listeners;
+			
+			// destroy DOM
+			put("!", this.domNode);
+			
+			// remove properties that are or may contain node references
+			for(i = nodeRefs.length; i--;){
+				delete this[nodeRefs[i]];
 			}
 		},
 		refresh: function(){
@@ -274,12 +302,6 @@ function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 				this.observers[i].cancel();
 			}
 			this.observers = [];
-			if(this.init){
-				this.init({
-					domNode: this.bodyNode,
-					containerNode: this.contentNode
-				});
-			}
 			this.preloadNode = null;
 		},
 		renderArray: function(results, beforeNode, options){
@@ -354,7 +376,7 @@ function(put, declare, listen, aspect, has, TouchScroll, hasClass){
 			return row;
 		},
 		renderRow: function(value, options){
-			return put("div", value);
+			return put("div", "" + value);
 		},
 		row: function(target){
 			// summary:

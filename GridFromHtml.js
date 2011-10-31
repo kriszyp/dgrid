@@ -1,4 +1,5 @@
-define(["./OnDemandGrid", "dojo/_base/declare", "dojo/_base/lang", "dojo/dom-construct", "dojo/_base/Deferred", "require"], function(OnDemandGrid, declare, lang, domConstruct, Deferred, require){
+define(["./OnDemandGrid", "dojo/_base/declare", "put-selector/put"],
+function(OnDemandGrid, declare, put){
 	// This module supports parsing grid structure information from an HTML table.
 	// This module does NOT support ColumnSets; see GridWithColumnSetsFromHtml
 	
@@ -66,18 +67,13 @@ define(["./OnDemandGrid", "dojo/_base/declare", "dojo/_base/lang", "dojo/dom-con
 			this.inherited(arguments, [params, div]);
 			
 			// destroy srcNodeRef for good now that we're done with it
-			domConstruct.destroy(srcNodeRef);
+			put(srcNodeRef, "!");
 		}
 	});
 	
 	// hang some utility functions, potentially useful for extensions
 	GridFromHtml.utils = {
 		// Functions for getting various types of values from HTML attributes
-		getObjFromAttr: function(node, attr){
-			// used to for e.g. formatter, get, renderCell
-			var val = node.getAttribute(attr);
-			return val && lang.getObject(val);
-		},
 		getBoolFromAttr: function(node, attr){
 			// used for e.g. sortable
 			var val = node.getAttribute(attr);
@@ -107,8 +103,6 @@ define(["./OnDemandGrid", "dojo/_base/declare", "dojo/_base/lang", "dojo/dom-con
 		// Function for aggregating th attributes into column properties
 		getColumnFromCell: function(th){
 			var
-				getObj = GridFromHtml.utils.getObjFromAttr,
-				getBool = GridFromHtml.utils.getBoolFromAttr,
 				getNum = GridFromHtml.utils.getNumFromAttr,
 				obj, tmp;
 			

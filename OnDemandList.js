@@ -1,12 +1,10 @@
-define(["dojo/_base/declare", "dojo/_base/lang", "dojo/_base/Deferred", "dojo/on", "put-selector/put", "./List"], function(declare, lang, Deferred, listen, put, List){
+define(["dojo/_base/declare", "dojo/_base/lang", "dojo/_base/Deferred", "dojo/on", "put-selector/put", "./List"],
+function(declare, lang, Deferred, listen, put, List){
 
 function emitError(err){
 	// called by _trackError in context of list/grid, if an error is encountered
-	listen.emit(this.domNode, "error", { error: err });
+	listen.emit(this.domNode, "dgrid-error", { error: err });
 }
-
-// noop is used as Deferred callback when we're only interested in errors
-function noop(r){ return r; }
 
 return declare([List], {
 	create: function(params, srcNodeRef){
@@ -339,22 +337,25 @@ return declare([List], {
 					function(){ return self.row(id).data; };
 			};
 		
+		// function called within loop to generate a function for putting an item
+		function putter(id, dirtyObj) {
+			// Return a function handler
+			return function(object) {
+				var key;
+				// Copy dirty props to the original
+				for(key in dirtyObj){ object[key] = dirtyObj[key]; }
+				// Put it in the store, returning the result/promise
+				return Deferred.when(store.put(object), function() {
+					// Delete the item now that it's been confirmed updated
+					delete dirty[id];
+				});
+			};
+		}
+		
 		// For every dirty item, grab the ID
 		for(var id in this.dirty) {
 			// Create put function to handle the saving of the the item
-			var put = (function(dirtyObj) {
-				// Return a function handler
-				return function(object) {
-					var key;
-					// Copy dirty props to the original
-					for(key in dirtyObj){ object[key] = dirtyObj[key]; }
-					// Put it in the store, returning the result/promise
-					return dojo.when(store.put(object), function() {
-						// Delete the item now that it's been confirmed updated
-						delete dirty[id];
-					});
-				};
-			})(dirty[id]);
+			var put = putter(id, dirty[id]);
 			
 			// Add this item onto the promise chain,
 			// getting the item from the store first if desired.
@@ -389,11 +390,10 @@ return declare([List], {
 		}catch(err){
 			// report sync error
 			emitError.call(this, err);
-			// TODO: should we re-throw? probably not, but callers may have to handle undefined.
 		}
 		
 		// wrap in when call to handle reporting of potential async error
-		return Deferred.when(result, noop, lang.hitch(this, emitError));
+		return Deferred.when(result, null, lang.hitch(this, emitError));
 	}
 });
 
