@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Gantt Chart</title>
+		<link rel="stylesheet" href="../../../dojo/resources/dojo.css">
+		<link rel="stylesheet" href="../../css/skins/claro.css">
+		<link rel="stylesheet" href="resources/gantt.css">
+		<style>
+		#gantt {
+			width: 800px;
+		}
+		</style>
+	</head>
+	<body class="claro">
+		<div id="gantt">
+		</div>
+		<script src="../../../dojo/dojo.js" data-dojo-config="async:1"></script>
+		<script>
+require(["dgrid/demos/gantt/GanttGrid", "dgrid/demos/gantt/data"], function(GanttGrid, data){
+	// instantiate our GanttGrid with our test store data
+	new GanttGrid({
+		store: data, // give it our test data 
+		query:{
+			parent:undefined // the top level query shows only top level items
+		}
+	}, "gantt");
+});
+		</script>
+	</body>
+</html>
