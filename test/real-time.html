@@ -1,0 +1,49 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" 
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+	<head>
+		<title>Test height:auto</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+		<meta name="viewport" content="width=570" />
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+			@import "../css/dgrid.css";
+			@import "../css/skins/claro.css";
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: true"></script>
+		<script type="text/javascript">
+			require(["dgrid/List", "dgrid/OnDemandGrid","dgrid/Selection", "dgrid/editor", "dgrid/Keyboard", "dgrid/tree", "dojo/_base/declare", "dojo/store/JsonRest", "dojo/store/Observable", "dojo/store/Cache", "dojo/store/Memory", "dojo/_base/Deferred", "dojo/domReady!"], 
+				function(List, Grid, Selection, editor, Keyboard, tree, declare, JsonRest, Observable, Cache, Memory, Deferred){
+					var stockStore = new Observable(new JsonRest({
+						target:"./data/stocks.json" 
+					}));
+
+					window.grid = new (declare([Grid, Selection, Keyboard]))({
+						store: stockStore,
+						query: {},
+						columns: {
+							id:"Symbol",
+							name: "Name",
+							price: {formatter: function(value){return "$" + value.toFixed(2);}, label: "Price"}
+						}
+					}, "grid");
+					stockStore.query({}).then(function(results){
+						function nextUpdate(){
+							var stock = results[Math.floor(Math.random() * results.length)];
+							stock.price += Math.random();
+							stockStore.notify(stock, stock.id);
+							setTimeout(nextUpdate, Math.random() * 1000);
+						}
+						nextUpdate();
+					});
+				});
+				
+		</script>
+	</head>
+	<body class="claro">
+		<h2>A basic grid with height:auto</h2>
+		<div id="grid"></div>
+		<a href="https://github.com/SitePen/dgrid">dgrid</a>
+	</body>
+</html>
