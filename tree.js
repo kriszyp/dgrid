@@ -1,6 +1,7 @@
 define(["dojo/_base/declare", "dojo/_base/Deferred", "dojo/query", "dojo/on", "dojo/aspect", "dojo/has!touch?./util/touch", "put-selector/put"],
 function(declare, Deferred, querySelector, on, aspect, touchUtil, put){
 
+var when = Deferred.when;
 return function(column){
 	// summary:
 	//      Add a editing capability
@@ -19,12 +20,17 @@ return function(column){
 		var mayHaveChildren = !grid.store.mayHaveChildren || grid.store.mayHaveChildren(object);
 		// create the expando
 		var dir = grid.isRTL ? "right" : "left";
-		var expando = put(td, "div.dgrid-expando-icon" + (mayHaveChildren ? ".ui-icon.ui-icon-triangle-1-e" : "") +
-			"[style=margin-" + dir + ": " + (level * 19) + "px; float: " + dir + "]");
+		var expando = put(td, "div.dgrid-expando-icon[style=margin-" + 
+				dir + ": " + (level * 19) + "px; float: " + dir + "]");
 		expando.innerHTML = "&nbsp;"; // for opera to space things properly
 		originalRenderCell.call(this, object, value, td, options);
 		expando.level = level;
-		expando.mayHaveChildren = mayHaveChildren;
+		when(mayHaveChildren, function(mayHaveChildren){
+			if(mayHaveChildren){
+				expando.mayHaveChildren = true;
+				put(expando, ".ui-icon.ui-icon-triangle-1-e");
+			}
+		});
 		var tr, query;
 		
 		if(!grid.expand){
@@ -86,7 +92,7 @@ return function(column){
 							return grid.store.getChildren(row.data, options);
 						};
 						query.level = target.level;
-						Deferred.when(
+						when(
 							grid.renderQuery ?
 								grid._trackError(function(){
 									return grid.renderQuery(query, preloadNode);
