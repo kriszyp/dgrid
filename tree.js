@@ -9,22 +9,36 @@ return function(column){
 			put(td, "span.dgrid-expando-text", value);
 		}
 	};
+	var expandedMap = {};
+
 	column.renderCell = function(object, value, td, options){
 		// summary:
 		//		Renders a cell that can be expanded, creating more rows
 		var level = Number(options.query.level) + 1;
 		level = isNaN(level) ? 0 : level;
 		var grid = this.grid;
-		var transitionEventSupported;
+		var id = grid.store.getIdentity(object);
+		var transitionEventSupported, expanded = expandedMap[id]; 
 		var mayHaveChildren = !grid.store.mayHaveChildren || grid.store.mayHaveChildren(object);
 		// create the expando
 		var dir = grid.isRTL ? "right" : "left";
-		var expando = put(td, "div.dgrid-expando-icon" + (mayHaveChildren ? ".ui-icon.ui-icon-triangle-1-e" : "") +
+		var expando = put(td, "div.dgrid-expando-icon" + (mayHaveChildren ? ".ui-icon.ui-icon-triangle-1-" + (expanded ? "se" : "e") : "") +
 			"[style=margin-" + dir + ": " + (level * 19) + "px; float: " + dir + "]");
 		expando.innerHTML = "&nbsp;"; // for opera to space things properly
 		originalRenderCell.call(this, object, value, td, options);
 		expando.level = level;
 		expando.mayHaveChildren = mayHaveChildren;
+		if(expanded){
+			// if it was unrendered in expanded state, we restore the expansion
+			put(td, '+', expanded);
+			expando.expanded = true;
+			expando.container = expanded;
+			setTimeout(function(){
+				// put it at the row level once the row exists
+				var row = grid.row(td);
+				row && put(row.element, '+', expanded);
+			});
+		}
 		var tr, query;
 		
 		if(!grid.expand){
@@ -51,9 +65,10 @@ return function(column){
 						grid.removeRow(element);
 					});
 					// now remove the connected container node
-					if(!justCleanup){
-						put(connected, "!");
-					}
+					// we can't delete it because it screws up scrolling if it is not removed at 
+					// the same time as the rowElement, so we put in the rowElement so 
+					// they can be deleted together
+					rowElement.appendChild(connected);
 				}
 			});
 			grid._calcRowHeight = function(rowElement){
@@ -73,15 +88,15 @@ return function(column){
 					var expanded = target.expanded = expand === undefined ? !target.expanded : expand;
 					// update the expando display
 					target.className = "dgrid-expando-icon ui-icon ui-icon-triangle-1-" + (expanded ? "se" : "e"); 
-					var preloadNode = target.preloadNode,
+					var preloadNode,
 						row = grid.row(target),
 						rowElement = row.element,
-						container;
-					if(!preloadNode){
+						container = target.container;
+					if(!container){
 						// if the children have not been created, create a container, a preload node and do the 
 						// query for the children
-						container = rowElement.connected = put('div.dgrid-tree-container');//put(rowElement, '+...
-						preloadNode = target.preloadNode = put(rowElement, '+', container, 'div.dgrid-preload');
+						container = target.container = rowElement.connected = put('div.dgrid-tree-container.dgrid-between-row');//put(rowElement, '+...
+						preloadNode = put(rowElement, '+', container, 'div.dgrid-preload');
 						var query = function(options){
 							return grid.store.getChildren(row.data, options);
 						};
@@ -119,6 +134,10 @@ return function(column){
 							}
 							// now set the height to auto
 							this.style.height = "";
+							if(container.hidden){
+								// hiding the container may need to trigger paging
+								grid._processScroll();
+							}
 						};
 						on(container, "transitionend,webkitTransitionEnd,oTransitionEnd,MSTransitionEnd", transitionend);
 						if(!transitionEventSupported){
@@ -129,7 +148,9 @@ return function(column){
 					}
 					// show or hide all the children
 					
-					container = rowElement.connected;
+					container = target.container;
+					// store the expanded state
+					expandedMap[row.id] = expanded && container;
 					var containerStyle = container.style;
 					container.hidden = !expanded;
 					// make sure it is visible so we can measure it
