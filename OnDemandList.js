@@ -316,6 +316,7 @@ return declare([List, _StoreMixin], {
 				count = Math.ceil(count);
 				offset = Math.min(Math.floor(offset), preload.count - count);
 				var options = grid.get("queryOptions");
+				var initialCount = preload.count;
 				preload.count -= count;
 				var beforeNode = preloadNode,
 					keepScrollTo, queryRowsOverlap = grid.queryRowsOverlap;
@@ -363,7 +364,7 @@ return declare([List, _StoreMixin], {
 				}
 				options.count = count + queryRowsOverlap;
 
-				preloadNode.style.height = Math.max(preload.count == 0 ? 0 : (preloadNode.offsetHeight - count * grid.rowHeight), 0) + "px";
+				preloadNode.style.height = Math.max(preload.count == 0 ? 0 : (preloadNode.offsetHeight - (initialCount - preload.count) * grid.rowHeight), 0) + "px";
 				//adjustHeight(preload);
 				// create a loading node as a placeholder while the data is loaded
 				var loadingNode = put(beforeNode, "-div.dgrid-loading[style=height:" + count * grid.rowHeight + "px]");
@@ -381,7 +382,7 @@ return declare([List, _StoreMixin], {
 				var startingLoadingNodeTop = loadingNode.offsetTop;
 				// Isolate the variables in case we make multiple requests
 				// (which can happen if we need to render on both sides of an island of already-rendered rows)
-				(function(loadingNode, scrollNode, preloadNode, below, keepScrollTo, results){
+				(function(loadingNode, scrollNode, preloadNode, below, keepScrollTo, results, startingLoadingNodeTop){
 					Deferred.when(grid.renderArray(results, loadingNode, options), function(){
 						// can remove the loading node now
 						beforeNode = loadingNode.nextSibling;
@@ -401,7 +402,7 @@ return declare([List, _StoreMixin], {
 							});
 						}
 					});
-				}).call(this, loadingNode, scrollNode, preloadNode, below, keepScrollTo, results);
+				}).call(this, loadingNode, scrollNode, preloadNode, below, keepScrollTo, results, startingLoadingNodeTop);
 				preload = preload.previous;
 			}
 		}
