@@ -32,7 +32,7 @@ return declare([List, _StoreMixin], {
 	//		Indicates the number of rows to overlap queries. This helps keep
 	//		continuous data when underlying data changes (and thus pages don't
 	//		exactly align)
-	queryRowsOverlap: 1,
+	queryRowsOverlap: 0,
 	
 	// pagingDelay: Integer
 	//		Indicates the delay (in milliseconds) to wait before paging in more data
@@ -45,7 +45,7 @@ return declare([List, _StoreMixin], {
 		var self = this;
 		// check visibility on scroll events
 		listen(this.bodyNode, "scroll",
-			miscUtil.throttleDelayed(function(event){ self._processScroll(event); },
+			this._throttledProcessScroll = miscUtil.throttleDelayed(function(event){ self._processScroll(event); },
 				null, this.pagingDelay));
 	},
 	
@@ -363,11 +363,11 @@ return declare([List, _StoreMixin], {
 					options.start = preload.count;
 				}
 				options.count = count + queryRowsOverlap;
-
-				preloadNode.style.height = Math.max(preload.count == 0 ? 0 : (preloadNode.offsetHeight - (initialCount - preload.count) * grid.rowHeight), 0) + "px";
-				//adjustHeight(preload);
+				var newHeight = Math.max(preload.count == 0 ? 0 : (preloadNode.offsetHeight - (initialCount - preload.count) * grid.rowHeight), 0);
 				// create a loading node as a placeholder while the data is loaded
-				var loadingNode = put(beforeNode, "-div.dgrid-loading[style=height:" + count * grid.rowHeight + "px]");
+				var loadingNode = put(beforeNode, "-div.dgrid-loading[style=height:" + (preloadNode.offsetHeight - newHeight) + "px]");
+				preloadNode.style.height = newHeight + "px";
+
 				put(loadingNode, "div.dgrid-" + (below ? "below" : "above"), grid.loadingMessage);
 				loadingNode.count = count;
 				// use the query associated with the preload node to get the next "page"
@@ -386,7 +386,7 @@ return declare([List, _StoreMixin], {
 					Deferred.when(grid.renderArray(results, loadingNode, options), function(){
 						// can remove the loading node now
 						beforeNode = loadingNode.nextSibling;
-						if(!below){
+						if(!below && preloadNode.offsetHeight){
 							preloadNode.style.height = (loadingNode.offsetHeight - loadingNode.offsetTop + startingLoadingNodeTop + preloadNode.offsetHeight) + "px";
 						}   
 						put(loadingNode, "!");

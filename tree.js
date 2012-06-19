@@ -40,6 +40,7 @@ return function(column){
 					row.element.connected = expanded; 
 					put(row.element, '+', expanded);
 				}
+				grid._throttledProcessScroll();
 			});
 		}
 		var tr, query;
@@ -139,7 +140,7 @@ return function(column){
 							this.style.height = "";
 							if(container.hidden){
 								// hiding the container may need to trigger paging
-								grid._processScroll();
+								grid._throttledProcessScroll();
 							}
 						};
 						on(container, "transitionend,webkitTransitionEnd,oTransitionEnd,MSTransitionEnd", transitionend);

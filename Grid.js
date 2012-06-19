@@ -129,9 +129,8 @@ function(kernel, declare, listen, has, put, List){
 					if(rowSpan){
 						cell.rowSpan = rowSpan;
 					}
-					each(innerCell, column);
-					// add the td to the tr at the end for better performance
 					tr.appendChild(cell);
+					each(innerCell, column);
 				}
 			}
 			return row;
