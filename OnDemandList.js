@@ -212,7 +212,7 @@ return declare([List, _StoreMixin], {
 							nextRow = row[traversal];
 							continue;
 						}
-						if(reclaimedHeight + rowHeight + farOffRemoval > distanceOff || (nextRow.className.indexOf("dgrid-row") < 0 && nextRow.className.indexOf("dgrid-loading") < 0)){
+						if(reclaimedHeight + rowHeight + farOffRemoval > distanceOff || ((nextRow.className + " ").indexOf("dgrid-row ") < 0 && nextRow.className.indexOf("dgrid-loading") < 0)){
 							// we have reclaimed enough rows or we have gone beyond grid rows, let's call it good
 							break;
 						}
@@ -326,16 +326,21 @@ return declare([List, _StoreMixin], {
 					var previous = preload.previous;
 					if(previous){
 						removeDistantNodes(previous, visibleTop - (previous.node.offsetTop + previous.node.offsetHeight), 'nextSibling');
-						if(offset > 0 && previous.node == preloadNode.previousSibling){
-							// all of the nodes above were removed
-							offset = Math.min(preload.count, offset);
-							preload.previous.count += offset;
-							adjustHeight(preload.previous, true);
-							preload.count -= offset;
-							preloadNode.rowIndex += offset;
-							queryRowsOverlap = 0;
-						}else{
-							count += offset;
+						if(offset > 0){
+							while(previous && (previous.node != preloadNode.previousSibling)){
+								previous = previous.previous;
+							}
+							if(previous){
+								// all of the nodes above were removed
+								offset = Math.min(preload.count, offset);
+								previous.count += offset;
+								adjustHeight(previous, true);
+								preload.count -= offset;
+								preloadNode.rowIndex += offset;
+								queryRowsOverlap = 0;
+							}else{
+								count += offset;
+							}
 						}
 					}
 					options.start = preloadNode.rowIndex - queryRowsOverlap;
@@ -349,10 +354,14 @@ return declare([List, _StoreMixin], {
 						if(!beforeNode){
 							continue;
 						}
-						if(beforeNode == preload.next.node){
+						var next = preload.next;
+						while(next && (next.node != beforeNode)){
+							next = next.next;
+						}
+						if(next){
 							// all of the nodes were removed, can position wherever we want
-							preload.next.count += preload.count - offset;
-							preload.next.node.rowIndex = offset + count;
+							next.count += preload.count - offset;
+							next.node.rowIndex = offset + count;
 							preload.count = offset;
 							queryRowsOverlap = 0;
 						}else{
@@ -401,6 +410,7 @@ return declare([List, _StoreMixin], {
 								adjustHeight(below);
 							});
 						}
+						grid._throttledProcessScroll();
 					});
 				}).call(this, loadingNode, scrollNode, preloadNode, below, keepScrollTo, results, startingLoadingNodeTop);
 				preload = preload.previous;
