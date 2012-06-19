@@ -36,7 +36,10 @@ return function(column){
 			setTimeout(function(){
 				// put it at the row level once the row exists
 				var row = grid.row(td);
-				row && put(row.element, '+', expanded);
+				if(row){
+					row.element.connected = expanded; 
+					put(row.element, '+', expanded);
+				}
 			});
 		}
 		var tr, query;

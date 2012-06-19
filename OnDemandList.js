@@ -291,7 +291,7 @@ return declare([List, _StoreMixin], {
 				var offset = ((preloadNode.rowIndex ? visibleTop - requestBuffer : visibleBottom) - preloadTop) / grid.rowHeight;
 				var count = (visibleBottom - visibleTop + 2 * requestBuffer) / grid.rowHeight;
 				// utilize momentum for predictions
-				var momentum = Math.max(Math.min((visibleTop - lastScrollTop) * grid.rowHeight, grid.maxRowsPerPage/2), grid.maxRowsPerPage/-2);
+				var momentum = Math.max(Math.min((visibleTop - lastScrollTop) / grid.rowHeight, grid.maxRowsPerPage/2), grid.maxRowsPerPage/-2);
 				count += Math.min(Math.abs(momentum), 10);
 				if(preloadNode.rowIndex == 0){
 					// at the top, adjust from bottom to top
@@ -381,7 +381,7 @@ return declare([List, _StoreMixin], {
 				var startingLoadingNodeTop = loadingNode.offsetTop;
 				// Isolate the variables in case we make multiple requests
 				// (which can happen if we need to render on both sides of an island of already-rendered rows)
-				(function(loadingNode, scrollNode, below, keepScrollTo, results){
+				(function(loadingNode, scrollNode, preloadNode, below, keepScrollTo, results){
 					Deferred.when(grid.renderArray(results, loadingNode, options), function(){
 						// can remove the loading node now
 						beforeNode = loadingNode.nextSibling;
@@ -401,7 +401,7 @@ return declare([List, _StoreMixin], {
 							});
 						}
 					});
-				}).call(this, loadingNode, scrollNode, below, keepScrollTo, results);
+				}).call(this, loadingNode, scrollNode, preloadNode, below, keepScrollTo, results);
 				preload = preload.previous;
 			}
 		}
