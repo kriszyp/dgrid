@@ -141,14 +141,13 @@ return function(column){
 				
 				// update the expando display
 				target.className = "dgrid-expando-icon ui-icon ui-icon-triangle-1-" + (expanded ? "se" : "e");
-				var preloadNode = target.preloadNode,
-					rowElement = row.element,
-					container;
-				if(!preloadNode){
+				var rowElement = row.element,
+					container = rowElement.connected;
+				if(!container){
 					// if the children have not been created, create a container, a preload node and do the 
 					// query for the children
 					container = rowElement.connected = put('div.dgrid-tree-container');//put(rowElement, '+...
-					preloadNode = target.preloadNode = put(rowElement, '+', container, 'div.dgrid-preload');
+					preloadNode = put(rowElement, '+', container, 'div.dgrid-preload');
 					var query = function(options){
 						return grid.store.getChildren(row.data, options);
 					};
@@ -192,6 +191,9 @@ return function(column){
 						}
 						// now set the height to auto
 						this.style.height = "";
+						if(container.hidden){
+							grid._throttledProcessScroll();
+						}
 					};
 					on(container, "transitionend,webkitTransitionEnd,oTransitionEnd,MSTransitionEnd", transitionend);
 					if(!transitionEventSupported){
@@ -203,7 +205,6 @@ return function(column){
 				
 				// Show or hide all the children.
 				
-				container = rowElement.connected;
 				container.hidden = !expanded;
 				var containerStyle = container.style,
 					scrollHeight;
@@ -263,22 +264,6 @@ return function(column){
 		expando = column.renderExpando(level, mayHaveChildren, expanded);
 		expando.level = level;
 		expando.mayHaveChildren = mayHaveChildren;
-		
-		/*if(expanded){
-			// if it was unrendered in expanded state, we restore the expansion
-			put(td, '+', expanded);
-			expando.expanded = true;
-			expando.container = expanded;
-			setTimeout(function(){
-				// put it at the row level once the row exists
-				var row = grid.row(td);
-				if(row){
-					row.element.connected = expanded; 
-					put(row.element, '+', expanded);
-				}
-				grid._throttledProcessScroll();
-			});
-		}*/
 		
 		node = originalRenderCell.call(column, object, value, td, options);
 		if(node && node.nodeType){
