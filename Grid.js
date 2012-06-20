@@ -255,6 +255,12 @@ function(kernel, declare, listen, has, put, List){
 			}
 		},
 		
+		destroy: function(){
+			// Run _destroyColumns first to perform any column plugin tear-down logic.
+			this._destroyColumns();
+			this.inherited(arguments);
+		},
+		
 		_setSort: function(property, descending){
 			// summary:
 			//		Extension of List.js sort to update sort arrow in UI
@@ -339,10 +345,35 @@ function(kernel, declare, listen, has, put, List){
 				
 				// add grid reference to each column object for potential use by plugins
 				column.grid = this;
+				if(typeof column.init === "function"){ column.init(); }
+				
 				subRow.push(column); // make sure it can be iterated on
 			}
 			return isArray ? rowColumns : subRow;
 		},
+		
+		_destroyColumns: function(){
+			// summary:
+			//		Iterates existing subRows looking for any column definitions with
+			//		destroy methods (defined by plugins) and calls them.  This is called
+			//		immediately before configuring a new column structure.
+			
+			var subRowsLength = this.subRows.length,
+				i, j, column;
+			
+			// First remove rows (since they'll be refreshed after we're done),
+			// so that anything aspected onto removeRow by plugins can run.
+			// (cleanup will end up running again, but with nothing to iterate.)
+			this.cleanup();
+			
+			for(i = 0; i < subRowsLength; i++){
+				for(j = 0, len = this.subRows[i].length; j < len; j++){
+					column = this.subRows[i][j];
+					if(typeof column.destroy === "function"){ column.destroy(); }
+				}
+			}
+		},
+		
 		configStructure: function(){
 			// configure the columns and subRows
 			var subRows = this.subRows;
@@ -357,6 +388,7 @@ function(kernel, declare, listen, has, put, List){
 			}
 		},
 		_setColumns: function(columns){
+			this._destroyColumns();
 			// reset instance variables
 			this.subRows = null;
 			this.columns = columns;
@@ -364,6 +396,7 @@ function(kernel, declare, listen, has, put, List){
 			this._updateColumns();
 		},
 		_setSubRows: function(subrows){
+			this._destroyColumns();
 			this.subRows = subrows;
 			this._updateColumns();
 		},
@@ -378,7 +411,7 @@ function(kernel, declare, listen, has, put, List){
 		
 		_updateColumns: function(){
 			// summary:
-			//		Called after e.g. columns, subRows, columnSets are updated
+			//		Called when columns, subRows, or columnSets are reset
 			
 			this.configStructure();
 			this.renderHeader();
