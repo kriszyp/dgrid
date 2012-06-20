@@ -305,7 +305,7 @@ return declare([List, _StoreMixin], {
 				}
 				count = Math.min(Math.max(count, grid.minRowsPerPage),
 									grid.maxRowsPerPage, preload.count);
-				var below = preload.bottom;									
+				var below = preload.bottom && preload;
 				if(count == 0){
 					//if(preload == priorPreload){
 						//preload = preload[below ? "next" : "previous"];
