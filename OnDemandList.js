@@ -334,7 +334,7 @@ return declare([List, _StoreMixin], {
 								// all of the nodes above were removed
 								offset = Math.min(preload.count, offset);
 								previous.count += offset;
-								adjustHeight(previous, true);
+								previous.node.style.height = (previous.node.offsetHeight + offset * grid.rowHeight) + "px";
 								preload.count -= offset;
 								preloadNode.rowIndex += offset;
 								queryRowsOverlap = 0;
