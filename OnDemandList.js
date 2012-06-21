@@ -94,9 +94,9 @@ return declare([List, _StoreMixin], {
 			// adjust the previous and next links so the linked list is proper
 			topPreload.previous.next = topPreload;
 			preload.next.previous = preload; 
-		}else{
-			this.preload = preload;
 		}
+		this.preload = preload;
+
 		var loadingNode = put(preloadNode, "-div.dgrid-loading");
 		put(loadingNode, "div.dgrid-below", this.loadingMessage);
 		// Establish query options, mixing in our own.
@@ -260,7 +260,6 @@ return declare([List, _StoreMixin], {
 				}else{
 					removeDistantNodes(preload, visibleTop - (preload.node.offsetTop + preload.node.offsetHeight), 'nextSibling');
 				}
-				
 			}
 		}
 		
@@ -276,8 +275,6 @@ return declare([List, _StoreMixin], {
 		}
 		while((preload = nextPreload)){
 			nextPreload = preload.next;
-			//priorPreload = grid.preload;
-			//grid.preload = preload;
 			preloadNode = preload.node;
 			var preloadTop = preloadNode.offsetTop;
 			var preloadHeight;
@@ -307,11 +304,7 @@ return declare([List, _StoreMixin], {
 									grid.maxRowsPerPage, preload.count);
 				var below = preload.bottom && preload;
 				if(count == 0){
-					//if(preload == priorPreload){
-						//preload = preload[below ? "next" : "previous"];
-						continue;
-					//}
-					//return;
+					continue;
 				}
 				count = Math.ceil(count);
 				offset = Math.min(Math.floor(offset), preload.count - count);
@@ -413,6 +406,7 @@ return declare([List, _StoreMixin], {
 						grid._throttledProcessScroll();
 					});
 				}).call(this, loadingNode, scrollNode, preloadNode, below, keepScrollTo, results, startingLoadingNodeTop);
+				grid.preload = preload;
 				preload = preload.previous;
 			}
 		}
