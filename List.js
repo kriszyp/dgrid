@@ -68,6 +68,8 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 						element = current;
 						steps += steps < 0 ? 1 : -1;
 						break;
+					}else if(current.blocksMove){
+						return element;
 					}
 					// if the next sibling isn't a match, drill down to search
 				}while(nextSibling = (!visible || !current.hidden) && current[steps < 0 ? 'lastChild' : 'firstChild']);

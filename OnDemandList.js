@@ -77,6 +77,7 @@ return declare([List, _StoreMixin], {
 		// this preload node is used to represent the area of the grid that hasn't been
 		// downloaded yet
 		preloadNode.rowIndex = this.minRowsPerPage;
+		preloadNode.blocksMove = true;
 
 		var priorPreload = this.preload;
 		if(priorPreload){
@@ -126,6 +127,7 @@ return declare([List, _StoreMixin], {
 				
 				total -= trCount;
 				preload.count = total;
+				preloadNode.blocksMove = total != 0;
 				preloadNode.rowIndex = trCount;
 				if(total){
 					preloadNode.style.height = Math.min(total * self.rowHeight, self.maxEmptySpace) + "px";
@@ -237,6 +239,7 @@ return declare([List, _StoreMixin], {
 					preload.count += count;
 					if(reclaimedHeight){
 						preloadNode.style.height = (preloadNode.offsetHeight + reclaimedHeight) + "px";
+						preloadNode.blocksMove = preload.count != 0; 
 						if(below){
 							preloadNode.rowIndex -= count;
 							if(grid.maxEmptySpace < Infinity){
@@ -327,6 +330,7 @@ return declare([List, _StoreMixin], {
 								// all of the nodes above were removed
 								offset = Math.min(preload.count, offset);
 								previous.count += offset;
+								previous.node.blocksMove = true;
 								previous.node.style.height = (previous.node.offsetHeight + offset * grid.rowHeight) + "px";
 								preload.count -= offset;
 								preloadNode.rowIndex += offset;
@@ -364,6 +368,7 @@ return declare([List, _StoreMixin], {
 					}
 					options.start = preload.count;
 				}
+				preloadNode.blocksMove = preload.count != 0;
 				options.count = count + queryRowsOverlap;
 				var newHeight = Math.max(preload.count == 0 ? 0 : (preloadNode.offsetHeight - (initialCount - preload.count) * grid.rowHeight), 0);
 				// create a loading node as a placeholder while the data is loaded
@@ -399,6 +404,7 @@ return declare([List, _StoreMixin], {
 							Deferred.when(results.total || results.length, function(total){
 								// recalculate the count
 								below.count = total - below.node.rowIndex;
+								below.node.blocksMove = below.count != 0;
 								// readjust the height
 								adjustHeight(below);
 							});
