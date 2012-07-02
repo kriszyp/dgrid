@@ -84,7 +84,7 @@ return declare([List, _StoreMixin], {
 			// the preload nodes (if there are multiple) are represented as a linked list, need to insert it
 			if((preload.next = priorPreload.next) && 
 					// check to make sure that the current scroll position is below this preload
-					this.bodyNode.scrollTop >= priorPreload.node.offsetTop){ 
+					(preloadNode.offsetTop || this.bodyNode.scrollTop) >= priorPreload.node.offsetTop){ 
 				// the prior preload is above/before in the linked list
 				topPreload.previous = priorPreload;
 			}else{
