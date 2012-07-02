@@ -234,11 +234,7 @@ return function(column){
 				}
 				
 				// Update _expanded map.
-				if(expanded){
-					this._expanded[row.id] = container;
-				}else{
-					delete this._expanded[row.id];
-				}
+				this._expanded[row.id] = expanded && container;
 			}
 		}; // end function grid.expand
 		
