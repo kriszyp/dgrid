@@ -146,7 +146,7 @@ return function(column){
 				if(!container){
 					// if the children have not been created, create a container, a preload node and do the 
 					// query for the children
-					container = rowElement.connected = put('div.dgrid-tree-container');//put(rowElement, '+...
+					container = rowElement.connected = put('div.dgrid-tree-container.dgrid-between-row');//put(rowElement, '+...
 					preloadNode = put(rowElement, '+', container, 'div.dgrid-preload');
 					var query = function(options){
 						return grid.store.getChildren(row.data, options);
