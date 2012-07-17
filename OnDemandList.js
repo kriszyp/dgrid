@@ -404,10 +404,15 @@ return declare([List, _StoreMixin], {
 							// (not uncommon when total counts are estimated for db perf reasons)
 							Deferred.when(results.total || results.length, function(total){
 								// recalculate the count
+								var oldCount = below.count;
 								below.count = total - below.node.rowIndex;
 								below.node.blocksMove = below.count != 0;
 								// readjust the height
-								adjustHeight(below);
+								if(grid.maxEmptySpace < Infinity){
+									adjustHeight(below);
+								}else{
+									below.node.style.height = (below.node.offsetHeight + (below.count - oldCount) * grid.rowHeight) + "px";
+								} 
 							});
 						}
 						grid._throttledProcessScroll();
