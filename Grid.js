@@ -129,7 +129,7 @@ function(kernel, declare, listen, has, put, List){
 					if(rowSpan){
 						cell.rowSpan = rowSpan;
 					}
-					each(innerCell, column);
+					each.call(this, innerCell, column);
 					// add the td to the tr at the end for better performance
 					tr.appendChild(cell);
 				}
@@ -142,29 +142,53 @@ function(kernel, declare, listen, has, put, List){
 		right: function(cell, steps){
 			return this.cell(this._move(cell, steps || 1, "dgrid-cell"));
 		},
+		renderCell: function(td, column, object, options){
+			var data = object;
+			// we support the field, get, and formatter properties like the DataGrid
+			if(column.get){
+				data = column.get(object);
+			}else if("field" in column && column.field != "_item"){
+				data = data[column.field];
+			}
+			if(column.formatter){
+				td.innerHTML = column.formatter(data);
+			}else if(column.renderCell){
+				// A column can provide a renderCell method to do its own DOM manipulation, 
+				// event handling, etc.
+				appendIfNode(td, column.renderCell(object, data, td, options));
+			}else if(data != null){
+				td.appendChild(document.createTextNode(data));
+			}
+		},
 		renderRow: function(object, options){
 			var row = this.createRowCells("td", function(td, column){
-				var data = object;
-				// we support the field, get, and formatter properties like the DataGrid
-				if(column.get){
-					data = column.get(object);
-				}else if("field" in column && column.field != "_item"){
-					data = data[column.field];
-				}
-				if(column.formatter){
-					td.innerHTML = column.formatter(data);
-				}else if(column.renderCell){
-					// A column can provide a renderCell method to do its own DOM manipulation, 
-					// event handling, etc.
-					appendIfNode(td, column.renderCell(object, data, td, options));
-				}else if(data != null){
-					td.appendChild(document.createTextNode(data));
-				}
+				this.renderCell(td, column, object, options);
 			}, options && options.subRows);
 			// row gets a wrapper div for a couple reasons:
 			//	1. So that one can set a fixed height on rows (heights can't be set on <table>'s AFAICT)
 			// 2. So that outline style can be set on a row when it is focused, and Safari's outline style is broken on <table>
 			return put("div[role=gridcell]>", row);
+		},
+		renderHeaderCell: function(th, column){
+			var contentNode = column.headerNode = th;
+			if(contentBoxSizing){
+				// we're interested in the th, but we're passed the inner div
+				th = th.parentNode;
+			}
+			var field = column.field;
+			if(field){
+				th.field = field;
+			}
+			// allow for custom header content manipulation
+			if(column.renderHeaderCell){
+				appendIfNode(contentNode, column.renderHeaderCell(contentNode));
+			}else if(column.label || column.field){
+				contentNode.appendChild(document.createTextNode(column.label || column.field));
+			}
+			if(column.sortable !== false && field && field != "_item"){
+				th.sortable = true;
+				th.className += " dgrid-sortable";
+			}
 		},
 		renderHeader: function(){
 			// summary:
@@ -180,27 +204,7 @@ function(kernel, declare, listen, has, put, List){
 				put(headerNode.childNodes[i], "!");
 			}
 			
-			var row = this.createRowCells("th[role=columnheader]", function(th, column){
-				var contentNode = column.headerNode = th;
-				if(contentBoxSizing){
-					// we're interested in the th, but we're passed the inner div
-					th = th.parentNode;
-				}
-				var field = column.field;
-				if(field){
-					th.field = field;
-				}
-				// allow for custom header content manipulation
-				if(column.renderHeaderCell){
-					appendIfNode(contentNode, column.renderHeaderCell(contentNode));
-				}else if(column.label || column.field){
-					contentNode.appendChild(document.createTextNode(column.label || column.field));
-				}
-				if(column.sortable !== false && field && field != "_item"){
-					th.sortable = true;
-					th.className += " dgrid-sortable";
-				}
-			});
+			var row = this.createRowCells("th[role=columnheader]", this.renderHeaderCell, this.subRows.headerRows);
 			this._rowIdToObject[row.id = this.id + "-header"] = this.columns;
 			headerNode.appendChild(row);
 			// if it columns are sortable, resort on clicks
