@@ -17,21 +17,25 @@
 			#grid .field-col1 {
 				width: 20%;
 			}
+			#grid .fullName {
+				width: 35%;
+			}
 			#grid .field-col2 {
-				width: 20%;
+				width: 45%;
 			}
 			#grid .field-col3 {
 				width: auto;
 			}
 			#grid .field-col4 {
-				width: 30px;
-			}
-			#grid .field-col5 {
 				width: 50px;
 			}
-			#grid .noSub {
-				width: 80px;
+			#grid .field-col5 {
+				width: 16%;
 			}
+			#grid .noSub {
+				width: 30%;
+			}
+			
 			.ui-widget{
 				margin: 10px;
 			}
@@ -46,7 +50,7 @@
 				function(Grid, compoundColumn, Selection, Keyboard, declare, lang, testStore){
 					var columns = [ // you can declare columns as an object hash (key translates to field)
 						{field: 'col1', label: 'Column 1'}, 
-						compoundColumn({label: "Full Name", children: [
+						compoundColumn({label: "Full Name", className: "fullName", children: [
 							{field: 'col2', label: 'First', sortable: false},
 							{field: 'col3', label: 'Last'}]}),
 						compoundColumn({label: "No Sub-Headers", className: "noSub", children: [
