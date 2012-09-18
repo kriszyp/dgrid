@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Test List Observable Cases</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+		<meta name="viewport" content="width=570" />
+		<style type="text/css">
+			@import "../../dojo/resources/dojo.css";
+			@import "../css/dgrid.css";
+			@import "../css/skins/claro.css";
+			#list{
+				width: 300px;
+			}
+		</style>
+		<script type="text/javascript" src="../../dojo/dojo.js" 
+			data-dojo-config="async: true"></script>
+		<script type="text/javascript">
+			require(["dojo/on", "dgrid/List", "put-selector/put", "dgrid/test/data/base", "dojo/_base/declare", "dojo/domReady!"], 
+				function(on, List, put, testStore, declare, arrayUtil){
+
+					window.list = new List({
+						renderRow: function(object){
+							return put("div", object.col1 + object.col2);
+						}
+					},"list");
+					list.renderArray(testStore.query({id:1}));
+					on(document.getElementById("remove"), "click", function(){
+						testStore.remove(1);
+					});
+				});
+		</script>
+	</head>
+	<body class="claro">
+		<div id="grid"></div>
+		<div id="list"></div>
+		<button id="remove">Remove row 1</button>
+	</body>
+</html>
