@@ -24,7 +24,7 @@ return declare([List, _StoreMixin], {
 	//		Defines the minimum distance (in pixels) from the visible viewport area
 	//		rows must be in order to be removed.  Setting to Infinity causes rows
 	//		to never be removed.
-	farOffRemoval: 10000,
+	farOffRemoval: 2000,
 	
 	rowHeight: 22,
 	
@@ -239,14 +239,23 @@ return declare([List, _StoreMixin], {
 					preloadNode.style.height = (preloadNode.offsetHeight + reclaimedHeight) + "px";
 				}
 				// we remove the elements after expanding the preload node so that the contraction doesn't alter the scroll position
-				var trashBin = put("div");
-				for(var i = 0; i < toDelete.length; i++){
-					put(trashBin, toDelete[i]); // remove it from the DOM
+				if(toDelete.length){
+					var trashBin = put("div");
+					for(var i = 0; i < toDelete.length; i++){
+						put(trashBin, toDelete[i]); // remove it from the DOM
+					}
+					preload = preload[below ? "next" : "previous"];
+					if(preload){
+						preloadNode = preload.node; 
+						below ? 
+							removeDistantNodes(preload, preloadNode.offsetTop - visibleBottom, traversal, true) :
+							removeDistantNodes(preload, visibleTop - (preloadNode.offsetTop + preloadNode.offsetHeight), traversal);
+					} 
+					setTimeout(function(){
+						// we can defer the destruction until later
+						put(trashBin, "!");
+					},1);
 				}
-				setTimeout(function(){
-					// we can defer the destruction until later
-					put(trashBin, "!");
-				},1);
 			}
 		}
 		
@@ -297,7 +306,8 @@ return declare([List, _StoreMixin], {
 				count = Math.min(Math.max(count, grid.minRowsPerPage),
 									grid.maxRowsPerPage, preload.count);
 				if(count == 0){
-					return;
+					preload = preload.next == priorPreload ? preload.previous : preload.next;
+					continue;
 				}
 				count = Math.ceil(count);
 				offset = Math.min(Math.floor(offset), preload.count - count);
