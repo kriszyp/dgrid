@@ -540,7 +540,7 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 				this._rowIdToObject[row.id = id] = object;
 			}
 			parent.insertBefore(row, beforeNode);
-			if(previousRow){
+			if(previousRow && previousRow.rowIndex > -1){
 				// in this case, we are pulling the row from another location in the grid, and we need to readjust the rowIndices from the point it was removed
 				this.adjustRowIndices(previousRow);
 			}
