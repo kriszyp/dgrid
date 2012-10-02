@@ -24,7 +24,7 @@ return declare([List, _StoreMixin], {
 	//		Defines the minimum distance (in pixels) from the visible viewport area
 	//		rows must be in order to be removed.  Setting to Infinity causes rows
 	//		to never be removed.
-	farOffRemoval: 10000,
+	farOffRemoval: 2000,
 	
 	rowHeight: 22,
 	
@@ -161,9 +161,8 @@ return declare([List, _StoreMixin], {
 		// summary:
 		//		Calculate the height of a row. This is a method so it can be overriden for
 		//		plugins that add connected elements to a row, like the tree
-		
 		var sibling = rowElement.previousSibling;
-		return sibling && sibling.offsetTop != rowElement.offsetTop ?
+		return sibling && (sibling.offsetTop != rowElement.offsetTop || !sibling.offsetHeight)?
 			rowElement.offsetHeight : 0;
 	},
 	
@@ -179,8 +178,9 @@ return declare([List, _StoreMixin], {
 			visibleBottom = scrollNode.offsetHeight + visibleTop,
 			priorPreload, preloadNode, preload = grid.preload,
 			lastScrollTop = grid.lastScrollTop,
-			requestBuffer = grid.bufferRows * grid.rowHeight,
-			searchBuffer = requestBuffer - grid.rowHeight; // Avoid rounding causing multiple queries
+			rowHeight = grid.rowHeight,
+			requestBuffer = grid.bufferRows * rowHeight,
+			searchBuffer = requestBuffer - rowHeight; // Avoid rounding causing multiple queries
 		
 		// XXX: I do not know why this happens.
 		// munging the actual location of the viewport relative to the preload node by a few pixels in either
@@ -233,11 +233,9 @@ return declare([List, _StoreMixin], {
 				preload.count += count;
 				if(below){
 					preloadNode.rowIndex -= count;
-					adjustHeight(preload);
-				}else{
-					// if it is above, we can calculate the change in exact row changes, which we must do to not mess with the scrolling
-					preloadNode.style.height = (preloadNode.offsetHeight + reclaimedHeight) + "px";
 				}
+				// we can calculate the change in exact row changes, which we must do to not mess with the scrolling
+				preloadNode.style.height = (preloadNode.offsetHeight + reclaimedHeight) + "px";
 				// we remove the elements after expanding the preload node so that the contraction doesn't alter the scroll position
 				var trashBin = put("div");
 				for(var i = 0; i < toDelete.length; i++){
@@ -249,9 +247,13 @@ return declare([List, _StoreMixin], {
 				},1);
 			}
 		}
-		
-		function adjustHeight(preload, noMax){
-			preload.node.style.height = Math.min(preload.count * grid.rowHeight, noMax ? Infinity : grid.maxEmptySpace) + "px";
+		function adjustHeight(preload, addRows, noMax){
+			preload.count += addRows;
+			preload.node.style.height = Math.min(
+				preload.count * rowHeight, // if the we are below the maxEmptySpace, we just go with the exact size of the preload based on the number of rows 
+				noMax ? Infinity : // noMax, no need to limit 
+					// use the incrementally adjusted height if we are beyond the maxEmptySpace, so we can keep the scrolling smooth
+					Math.max(grid.maxEmptySpace, preload.node.offsetHeight + addRows * rowHeight)) + "px";  
 		}
 		while(preload && !preload.node.offsetWidth){
 			// skip past preloads that are not currently connected
@@ -279,10 +281,10 @@ return declare([List, _StoreMixin], {
 				}while(preload && !preload.node.offsetWidth);// skip past preloads that are not currently connected
 			}else{
 				// the preload node is visible, or close to visible, better show it
-				var offset = ((preloadNode.rowIndex ? visibleTop - requestBuffer : visibleBottom) - preloadTop) / grid.rowHeight;
-				var count = (visibleBottom - visibleTop + 2 * requestBuffer) / grid.rowHeight;
+				var offset = ((preloadNode.rowIndex ? visibleTop - requestBuffer : visibleBottom) - preloadTop) / rowHeight;
+				var count = (visibleBottom - visibleTop + 2 * requestBuffer) / rowHeight;
 				// utilize momentum for predictions
-				var momentum = Math.max(Math.min((visibleTop - lastScrollTop) * grid.rowHeight, grid.maxRowsPerPage/2), grid.maxRowsPerPage/-2);
+				var momentum = Math.max(Math.min((visibleTop - lastScrollTop) * rowHeight, grid.maxRowsPerPage/2), grid.maxRowsPerPage/-2);
 				count += Math.min(Math.abs(momentum), 10);
 				if(preloadNode.rowIndex == 0){
 					// at the top, adjust from bottom to top
@@ -301,8 +303,9 @@ return declare([List, _StoreMixin], {
 				}
 				count = Math.ceil(count);
 				offset = Math.min(Math.floor(offset), preload.count - count);
-				var options = lang.mixin(grid.get("queryOptions"), preload.options);
-				preload.count -= count;
+				var options = lang.mixin(grid.get("queryOptions"), preload.options),
+					adjustCount = -count,
+					preloadCount = preload.count - count;
 				var beforeNode = preloadNode,
 					keepScrollTo, queryRowsOverlap = grid.queryRowsOverlap,
 					below = preloadNode.rowIndex > 0 && preload; 
@@ -313,10 +316,9 @@ return declare([List, _StoreMixin], {
 						removeDistantNodes(previous, visibleTop - (previous.node.offsetTop + previous.node.offsetHeight), 'nextSibling');
 						if(offset > 0 && previous.node == preloadNode.previousSibling){
 							// all of the nodes above were removed
-							offset = Math.min(preload.count, offset);
-							preload.previous.count += offset;
-							adjustHeight(preload.previous, true);
-							preload.count -= offset;
+							offset = Math.min(preloadCount, offset);
+							adjustHeight(preload.previous, offset, true);
+							preloadCount -= offset;
 							preloadNode.rowIndex += offset;
 							queryRowsOverlap = 0;
 						}else{
@@ -333,26 +335,24 @@ return declare([List, _StoreMixin], {
 						var beforeNode = preloadNode.nextSibling;
 						if(beforeNode == preload.next.node){
 							// all of the nodes were removed, can position wherever we want
-							preload.next.count += preload.count - offset;
 							preload.next.node.rowIndex = offset + count;
-							adjustHeight(preload.next);
-							preload.count = offset;
+							adjustHeight(preload.next, preloadCount - offset);
+							preloadCount = offset;
 							queryRowsOverlap = 0;
 						}else{
 							keepScrollTo = true;
 						}
 						
 					}
-					options.start = preload.count;
+					options.start = preloadCount;
 				}
 				options.count = count + queryRowsOverlap;
 				if(keepScrollTo){
 					keepScrollTo = beforeNode.offsetTop;
 				}
-
-				adjustHeight(preload);
+				adjustHeight(preload, preloadCount - preload.count);
 				// create a loading node as a placeholder while the data is loaded
-				var loadingNode = put(beforeNode, "-div.dgrid-loading[style=height:" + count * grid.rowHeight + "px]");
+				var loadingNode = put(beforeNode, "-div.dgrid-loading[style=height:" + count * rowHeight + "px]");
 				put(loadingNode, "div.dgrid-" + (below ? "below" : "above"), grid.loadingMessage);
 				loadingNode.count = count;
 				// use the query associated with the preload node to get the next "page"
@@ -391,10 +391,8 @@ return declare([List, _StoreMixin], {
 							// the count of the last preload in case the total changes as later pages are retrieved
 							// (not uncommon when total counts are estimated for db perf reasons)
 							Deferred.when(results.total || results.length, function(total){
-								// recalculate the count
-								below.count = total - below.node.rowIndex;
-								// readjust the height
-								adjustHeight(below);
+								// recalculate the count, and adjust the height
+								adjustHeight(below, below.count - (total - below.node.rowIndex)); 
 							});
 						}
 					});
