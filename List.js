@@ -397,10 +397,10 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 			this.scrollTo({ x: 0, y: 0 });
 		},
 		
-		newRow: function(object, before, to, options){
+		newRow: function(object, before, to, options, absoluteTo){
 			if(before.parentNode){
 				var i = options.start + to;
-				var row = this.insertRow(object, before.parentNode, before, i, options);
+				var row = this.insertRow(object, before.parentNode, before, i, options, options.start + absoluteTo);
 				put(row, ".ui-state-highlight");
 				setTimeout(function(){
 					put(row, "!ui-state-highlight");
@@ -411,17 +411,28 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 		adjustRowIndices: function(firstRow){
 			if(this.maintainOddEven){
 				// this traverses through rows to maintain odd/even classes on the rows when indexes shift;
-				var next = firstRow;
-				var rowIndex = next.rowIndex;
+				var last, next = firstRow;
+				var rowIndex = rowIndex = next.rowIndex;
+				var trackRowIndex = true;
+				var absoluteRowIndex = next.absoluteRowIndex || rowIndex;
 				do{
+					if(last && last.nextSibling != next){
+						trackRowIndex = false; // quit tracking the row index if we are going into tree children or such
+					}
 					if(next.rowIndex > -1){
 						// skip non-numeric, non-rows
+						next.absoluteRowIndex = absoluteRowIndex;
 						if((next.className + ' ').indexOf("dgrid-row ") > -1){
-							put(next, '.' + (rowIndex % 2 == 1 ? oddClass : evenClass) + '!' + (rowIndex % 2 == 0 ? oddClass : evenClass));
+							put(next, '.' + (absoluteRowIndex % 2 == 1 ? oddClass : evenClass) + '!' + (absoluteRowIndex % 2 == 0 ? oddClass : evenClass));
+							absoluteRowIndex++;
 						}
-						next.rowIndex = rowIndex++;
+						if(trackRowIndex){
+							next.rowIndex = rowIndex++;
+						}
+						last = next;
 					}
-				}while((next = next.nextSibling) && next.rowIndex != rowIndex);
+				}while((next = move({element: last}, 1, "dgrid-row", true)) && // if there is no next sibling, try to use move so we can traverse in and out of tree children, but reset the rowIndex when doing that
+					next != last && next.absoluteRowIndex != absoluteRowIndex); // make sure we really moved
 			}
 		},
 		renderArray: function(results, beforeNode, options){
@@ -480,6 +491,7 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 				}, true)) - 1;
 			}
 			var rowsFragment = document.createDocumentFragment();
+			var startingIndex = options.startingIndex || 0;
 			// now render the results
 			if(results.map){
 				rows = results.map(mapEach, console.error);
@@ -494,7 +506,8 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 			}
 			var lastRow;
 			function mapEach(object){
-				lastRow = self.insertRow(object, rowsFragment, null, start++, options);
+				lastRow = self.insertRow(object, rowsFragment, null, start, options, start + startingIndex);
+				start++;
 				lastRow.observerIndex = observerIndex;
 				return lastRow;
 			}
@@ -515,7 +528,7 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 		},
 		
 		_autoId: 0,
-		insertRow: function(object, parent, beforeNode, i, options){
+		insertRow: function(object, parent, beforeNode, i, options, absoluteIndex){
 			// summary:
 			//		Creates a single row in the grid.
 			
@@ -535,7 +548,7 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 					this.removeRow(row);
 				}
 				row = this.renderRow(object, options);
-				row.className = (row.className || "") + " ui-state-default dgrid-row " + (i % 2 == 1 ? oddClass : evenClass);
+				row.className = (row.className || "") + " ui-state-default dgrid-row " + (absoluteIndex % 2 == 1 ? oddClass : evenClass);
 				// get the row id for easy retrieval
 				this._rowIdToObject[row.id = id] = object;
 			}
@@ -545,6 +558,7 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 				this.adjustRowIndices(previousRow);
 			}
 			row.rowIndex = i;
+			row.absoluteRowIndex = absoluteIndex;
 			return row;
 		},
 		renderRow: function(value, options){

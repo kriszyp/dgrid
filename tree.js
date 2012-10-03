@@ -156,12 +156,13 @@ return function(column){
 						return grid.store.getChildren(row.data, options);
 					};
 					query.level = target.level;
-					if(column.allowDuplicates){
+					options = column.allowDuplicates ?
 						// If allowDuplicates is specified, include parentId in options
 						// in order to facilitate unique IDs for each occurrence of the
 						// same item under multiple different parents.
-						options = { parentId: row.id };
-					}
+						{ parentId: row.id } : 
+						{};
+					options.startingIndex = rowElement.absoluteRowIndex + 1;
 					Deferred.when(
 						grid.renderQuery ?
 							grid._trackError(function(){
@@ -244,9 +245,18 @@ return function(column){
 				// Update _expanded map.
 				if(expanded){
 					this._expanded[row.id] = true;
+					// adjust the row indices of the children so we can maintain striping
+					var firstChild = this.down(row, 1).element;
+					if(firstChild){
+						firstChild.absoluteRowIndex = row.element.absoluteRowIndex + 1;
+						this.adjustRowIndices(firstChild);
+					}
 				}else{
 					delete this._expanded[row.id];
 				}
+				this.adjustRowIndices( // adjust the row indices that come after children
+					this.up({element: container.nextSibling}, 1, true).element // we do this to get the element before the element preceding the container
+				);
 			}
 		}; // end function grid.expand
 		
