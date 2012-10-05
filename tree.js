@@ -87,22 +87,35 @@ return function(column){
 			// Auto-expand (shouldExpand) considerations
 			var row = this.row(rowElement),
 				expanded = column.shouldExpand(row, currentLevel, this._expanded[row.id]);
-			
-			if(expanded){ this.expand(rowElement, true, true); }
+
+			if(expanded){
+				this.expand(rowElement, true, true, expanded);
+				grid._throttledProcessScroll();
+			}
 			return rowElement; // pass return value through
 		}));
 		
 		listeners.push(aspect.before(grid, "removeRow", function(rowElement, justCleanup){
-			var connected = rowElement.connected;
+			var connected = rowElement.connected,
+				id = this.row(rowElement).id,
+				preloadNode = this._expanded[id];
+			if(preloadNode){
+				preloadNode.style.height = this._calcRowHeight(rowElement) + "px";
+				var preload = grid.preload;
+				while((preload = preload.previous)){
+					if(preload.node == preloadNode){
+						preload.count += preloadNode.rowIndex;
+					}
+				}
+				preloadNode.rowIndex = 0;
+			}
 			if(connected){
 				// if it has a connected expando node, we process the children
 				querySelector(">.dgrid-row", connected).forEach(function(element){
-					grid.removeRow(element, true);
+					grid.removeRow(element, justCleanup);
 				});
-				// now remove the connected container node
-				if(!justCleanup){
-					put(connected, "!");
-				}
+				// now move the connected container node so it can be collected by row cleanup
+				rowElement.appendChild(connected);
 			}
 		}));
 		
@@ -122,7 +135,7 @@ return function(column){
 			return rowElement.offsetHeight + (connected ? connected.offsetHeight : 0); 
 		};
 		
-		grid.expand = function(target, expand, noTransition){
+		grid.expand = function(target, expand, noTransition, existingPreloadNode){
 			// summary:
 			//		Expands the row corresponding to the given target.
 			// target: Object
@@ -143,15 +156,19 @@ return function(column){
 				
 				// update the expando display
 				target.className = "dgrid-expando-icon ui-icon ui-icon-triangle-1-" + (expanded ? "se" : "e");
-				var preloadNode = target.preloadNode,
+				var preloadNode = existingPreloadNode || target.preloadNode,
 					rowElement = row.element,
 					container, options;
 				
-				if(!preloadNode){
+				if(!target.preloadNode){
 					// if the children have not been created, create a container, a preload node and do the 
 					// query for the children
-					container = rowElement.connected = put('div.dgrid-tree-container');//put(rowElement, '+...
-					preloadNode = target.preloadNode = put(rowElement, '+', container, 'div.dgrid-preload');
+					container = rowElement.connected = put('div.dgrid-tree-container.dgrid-between-row');//put(rowElement, '+...
+					if(preloadNode){
+						put(rowElement, '+', container, preloadNode);
+					}else{
+						preloadNode = put(rowElement, '+', container, 'div.dgrid-preload');
+					}
 					var query = function(options){
 						return grid.store.getChildren(row.data, options);
 					};
@@ -162,20 +179,22 @@ return function(column){
 						// same item under multiple different parents.
 						options = { parentId: row.id };
 					}
-					Deferred.when(
-						grid.renderQuery ?
-							grid._trackError(function(){
-								return grid.renderQuery(query, preloadNode, options);
-							}) :
-							grid.renderArray(query(options), preloadNode, {query: query}),
-						function(){
-							// Expand once results are retrieved, if the row is still expanded.
-							if(grid._expanded[row.id]){
-								var scrollHeight = container.scrollHeight;
-								container.style.height = scrollHeight ? scrollHeight + "px" : "auto";
+					if(!existingPreloadNode){
+						Deferred.when(
+							grid.renderQuery ?
+								grid._trackError(function(){
+									return grid.renderQuery(query, preloadNode, options);
+								}) :
+								grid.renderArray(query(options), preloadNode, {query: query}),
+							function(){
+								// Expand once results are retrieved, if the row is still expanded.
+								if(grid._expanded[row.id] && !noTransition){
+									var scrollHeight = container.scrollHeight;
+									container.style.height = scrollHeight ? scrollHeight + "px" : "auto";
+								}
 							}
-						}
-					);
+						);
+					}
 					var transitionend = function(event){
 						// NOTE: this == container
 						var height = this.style.height;
@@ -201,6 +220,9 @@ return function(column){
 						}
 						// now set the height to auto
 						this.style.height = "";
+						if(container.hidden){
+							grid._throttledProcessScroll();
+						}
 					};
 					on(container, "transitionend,webkitTransitionEnd,oTransitionEnd,MSTransitionEnd", transitionend);
 					if(!transitionEventSupported){
@@ -209,7 +231,7 @@ return function(column){
 						}, 600);
 					}
 				}
-				
+				target.preloadNode = preloadNode;
 				// Show or hide all the children.
 				
 				container = rowElement.connected;
@@ -243,7 +265,7 @@ return function(column){
 				
 				// Update _expanded map.
 				if(expanded){
-					this._expanded[row.id] = true;
+					this._expanded[row.id] = preloadNode;
 				}else{
 					delete this._expanded[row.id];
 				}
