@@ -367,12 +367,14 @@ return declare([List, _StoreMixin], {
 				}
 				// create a loading node as a placeholder while the data is loaded
 				var loadingNode = put(beforeNode, "-div.dgrid-loading");
+				loadingNode.style.height = (count * grid.rowHeight) + "px";
 				if(preload.count){
-					loadingNode.style.height = (count * grid.rowHeight) + "px";
 					preload.node.style.height = (preloadNode.offsetHeight + (preload.count - priorCount) * grid.rowHeight) + "px";
 				}else{
-					// all the way to the top
-					loadingNode.style.height = preloadNode.offsetHeight + "px";
+					if(keepScrollTo){
+						// we are contiguous with the top, so make sure we replacing the loading with exactly the preload height
+						loadingNode.style.height = preloadNode.offsetHeight + "px";
+					}
 					preload.node.style.height = "0px";
 				}
 				put(loadingNode, "div.dgrid-" + (below ? "below" : "above"), grid.loadingMessage);
