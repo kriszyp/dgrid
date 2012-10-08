@@ -180,8 +180,8 @@ return declare([List, _StoreMixin], {
 			visibleBottom = scrollNode.offsetHeight + visibleTop,
 			priorPreload, preloadNode, preload = grid.preload,
 			lastScrollTop = grid.lastScrollTop,
-			requestBuffer = grid.bufferRows * grid.rowHeight,
-			searchBuffer = requestBuffer - grid.rowHeight; // Avoid rounding causing multiple queries
+			bufferRows = grid.bufferRows,
+			searchBuffer = (grid.bufferRows - 1) * grid.rowHeight; // Avoid rounding causing multiple queries
 		
 		// XXX: I do not know why this happens.
 		// munging the actual location of the viewport relative to the preload node by a few pixels in either
@@ -226,6 +226,11 @@ return declare([List, _StoreMixin], {
 						var observer = observers[lastObserverIndex]; 
 						observer && observer.cancel();
 						observers[lastObserverIndex] = 0; // remove it so we don't call cancel twice
+					}
+					var queryResults = row.queryResults;
+					if(queryResults){
+						// if we remove a dgrid loading node, we cancel the associated query that is being executed
+						queryResults.cancel();
 					}
 					reclaimedHeight += rowHeight;
 					count += row.count || 1;
@@ -286,15 +291,18 @@ return declare([List, _StoreMixin], {
 				// the preload is above the line of sight
 			}else if(preloadNode.offsetWidth){
 				// the preload node is visible, or close to visible, better show it
-				var offset = ((preloadNode.bottom ? visibleTop - requestBuffer : visibleBottom) - preloadTop) / grid.rowHeight;
-				var count = (visibleBottom - visibleTop + 2 * requestBuffer) / grid.rowHeight;
+				var offset = preloadNode.bottom ? (visibleTop - preloadTop) / grid.rowHeight :
+						visibleTop ? preload.count + (visibleBottom - preloadNode.offsetHeight) / grid.rowHeight : 0;
+				var count = (visibleBottom - visibleTop) / grid.rowHeight + bufferRows + 1;
 				// utilize momentum for predictions
 				var momentum = Math.max(Math.min((visibleTop - lastScrollTop) * grid.rowHeight, grid.maxRowsPerPage/2), grid.maxRowsPerPage/-2);
 				count += Math.min(Math.abs(momentum), 10);
-				if(preloadNode.rowIndex == 0){
+				if(!preloadNode.bottom){
 					// at the top, adjust from bottom to top
 					offset -= count;
 				}
+				// must do this after so we have buffer on both sides when scrolling up
+				count += bufferRows + 1;
 				offset = Math.max(offset, 0);
 				if(offset < 10 && offset > 0 && count + offset < grid.maxRowsPerPage){
 					// connect to the top of the preloadNode if possible to avoid excessive adjustments
@@ -346,13 +354,12 @@ return declare([List, _StoreMixin], {
 							preload.next.count += preload.count - offset;
 							preload.next.node.rowIndex = offset + count;
 							adjustHeight(preload.next);
-							preload.count = offset;
 							queryRowsOverlap = 0;
 						}else{
 							keepScrollTo = true;
 						}
 					}
-					options.start = preload.count;
+					options.start = preload.count = offset;
 				}
 				options.count = count + queryRowsOverlap;
 				if(keepScrollTo){
@@ -377,7 +384,7 @@ return declare([List, _StoreMixin], {
 				// promise, it will lose QueryResults functions when chained by `when`
 				var results = preload.query(options),
 					trackedResults = grid._trackError(function(){ return results; });
-				
+				loadingNode.queryResults = results;
 				if(trackedResults === undefined){ return; } // sync query failed
 
 				// Isolate the variables in case we make multiple requests
@@ -389,21 +396,11 @@ return declare([List, _StoreMixin], {
 						put(loadingNode, "!");
 						if(keepScrollTo && beforeNode){ // beforeNode may have been removed if the query results loading node was a removed as a distant node before rendering 
 							// if the preload area above the nodes is approximated based on average
-							// row height, we may need to adjust the scroll once they are filled in
+							// row height, we may need to adjust the preload area once they are filled in
 							// so we don't "jump" in the scrolling position
 
 							if(preload.node.offsetHeight){
 								preload.node.style.height = Math.max(preload.node.offsetHeight + keepScrollTo - beforeNode.offsetTop, 0) + "px";
-							}else{
-							/*var pos = grid.getScrollPosition();
-								grid.scrollTo({
-									// Since we already had to query the scroll position,
-									// include x to avoid TouchScroll querying it again on its end.
-									x: pos.x,
-									y: pos.y + beforeNode.offsetTop - keepScrollTo,
-									// Don't kill momentum mid-scroll (for TouchScroll only).
-									preserveMomentum: true
-								});*/
 							}
 						}
 						if(below){
