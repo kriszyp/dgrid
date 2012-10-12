@@ -163,7 +163,8 @@ return function(column){
 				if(!target.preloadNode){
 					// if the children have not been created, create a container, a preload node and do the 
 					// query for the children
-					container = rowElement.connected = put('div.dgrid-tree-container.dgrid-between-row');//put(rowElement, '+...
+					container = rowElement.connected = put('div.dgrid-tree-container');//put(rowElement, '+...
+					container.betweenRow = true;
 					if(preloadNode){
 						put(rowElement, '+', container, preloadNode);
 					}else{

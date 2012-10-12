@@ -211,12 +211,17 @@ return declare([List, _StoreMixin], {
 				var toDelete = [];
 				while((row = nextRow)){
 					var rowHeight = grid._calcRowHeight(row);
-					if(reclaimedHeight + rowHeight + farOffRemoval > distanceOff || (nextRow.className.indexOf("dgrid-row") < 0 && nextRow.className.indexOf("dgrid-loading") < 0)){
+					if(row.betweenRow){
+						// skip in between rows
+						row = row[traversal];
+					}
+					if(!row || reclaimedHeight + rowHeight + farOffRemoval > distanceOff || (row.className.indexOf("dgrid-row") < 0 && row.className.indexOf("dgrid-loading") < 0)){
 						// we have reclaimed enough rows or we have gone beyond grid rows, let's call it good
 						break;
 					}
 					var nextRow = row[traversal]; // have to do this before removing it
-					if(nextRow.className.indexOf("dgrid-between-row") > -1){
+					if(nextRow && nextRow.betweenRow){
+						// skip in between rows
 						nextRow = nextRow[traversal];
 					}
 					var lastObserverIndex, currentObserverIndex = row.observerIndex;
@@ -243,11 +248,9 @@ return declare([List, _StoreMixin], {
 				preload.count += count;
 				if(below){
 					preloadNode.rowIndex -= count;
-					adjustHeight(preload);
-				}else{
-					// if it is above, we can calculate the change in exact row changes, which we must do to not mess with the scrolling
-					preloadNode.style.height = (preloadNode.offsetHeight + reclaimedHeight) + "px";
 				}
+				// calculate the change in exact row changes, which we must do to not mess with the scrolling
+				preloadNode.style.height = (preloadNode.offsetHeight + reclaimedHeight) + "px";
 				// we remove the elements after expanding the preload node so that the contraction doesn't alter the scroll position
 				if(toDelete.length){
 					var trashBin = put("div");
@@ -357,6 +360,7 @@ return declare([List, _StoreMixin], {
 							queryRowsOverlap = 0;
 						}else{
 							keepScrollTo = true;
+							count = priorCount - offset;
 						}
 					}
 					options.start = preload.count = offset;
