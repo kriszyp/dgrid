@@ -54,10 +54,12 @@ return declare([List, _StoreMixin], {
 		//		Creates a preload node for rendering a query into, and executes the query
 		//		for the first page of data. Subsequent data will be downloaded as it comes
 		//		into view.
+		var rows = [];
 		var preload = {
 			query: query,
 			count: 0,
 			node: preloadNode,
+			rows: rows,
 			options: options
 		};
 		if(!preloadNode){
@@ -70,6 +72,7 @@ return declare([List, _StoreMixin], {
 				//topPreloadNode.preload = true;
 				query: query,
 				next: preload,
+				rows: rows,
 				options: options
 			};
 			preload.node = preloadNode = put(this.contentNode, "div.dgrid-preload");
@@ -106,12 +109,28 @@ return declare([List, _StoreMixin], {
 		// Establish query options, mixing in our own.
 		// (The getter returns a delegated object, so simply using mixin is safe.)
 		options = lang.mixin(this.get("queryOptions"), options, 
-			{start: 0, count: this.minRowsPerPage, query: query});
+			{query: query});
 		// execute the query
-		var results = query(options);
+		if(this.store.sliceable){
+			// sliceable query, so do the query first and then slice for each page
+			var results = query(options);
+			this._observeResults(results, rows, options);
+			preload.queryResults = results;
+			if(topPreload){
+				topPreload.queryResults = results;
+			}
+			options.dontObserve = true;
+			options.queryResults = results;
+			results = results.slice(0, this.minRowsPerPage);
+		}else{
+			options.start = 0;
+			options.count = this.minRowsPerPage;
+			var results = query(options);
+		}
 		var self = this;
 		// render the result set
 		Deferred.when(this.renderArray(results, preloadNode, options), function(trs){
+			rows.push.apply(rows, trs);
 			return Deferred.when(results.total || results.length, function(total){
 				// remove loading node
 				put(loadingNode, "!");
@@ -152,10 +171,11 @@ return declare([List, _StoreMixin], {
 		this.inherited(arguments);
 		if(this.store){
 			// render the query
-			var self = this;
+			var self = this,
+				store = self.store;
 			this._trackError(function(){
 				return self.renderQuery(function(queryOptions){
-					return self.store.query(self.query, queryOptions);
+					return store.query(self.query, queryOptions);
 				});
 			});
 		}
@@ -231,6 +251,10 @@ return declare([List, _StoreMixin], {
 					lastObserverIndex = currentObserverIndex;
 					// we just do cleanup here, as we will do a more efficient node destruction in the setTimeout below
 					grid.removeRow(row, true);
+					if(preload.rows[row.rowIndex] == row){
+						// delete it from our array of rows to free memory
+						delete preload.rows[row.rowIndex];
+					}
 					toDelete.push(row);
 				}
 				// now adjust the preloadNode based on the reclaimed space
@@ -365,15 +389,24 @@ return declare([List, _StoreMixin], {
 				// Query now to fill in these rows.
 				// Keep _trackError-wrapped results separate, since if results is a
 				// promise, it will lose QueryResults functions when chained by `when`
-				var results = preload.query(options),
+				var results = preload.queryResults ?
+						// try to use slice() if we query results that are sliceable 
+						preload.queryResults.slice(options.start, options.start + options.count) : 
+						preload.query(options),
 					trackedResults = grid._trackError(function(){ return results; });
 				
 				if(trackedResults === undefined){ return; } // sync query failed
 
 				// Isolate the variables in case we make multiple requests
 				// (which can happen if we need to render on both sides of an island of already-rendered rows)
-				(function(loadingNode, scrollNode, below, keepScrollTo, results){
-					Deferred.when(grid.renderArray(results, loadingNode, options), function(){
+				(function(loadingNode, scrollNode, below, keepScrollTo, results, rows){
+					Deferred.when(grid.renderArray(results, loadingNode, options), function(trs){
+						if(rows){
+							// if we are tracking all the rows for the query, splice it in
+							for(var i = 0, l = trs.length; i < l; i++){
+								rows[i + options.start] = trs[i];
+							}
+						}
 						// can remove the loading node now
 						beforeNode = loadingNode.nextSibling;
 						put(loadingNode, "!");
@@ -405,7 +438,7 @@ return declare([List, _StoreMixin], {
 						// make sure we have covered the visible area
 						grid._processScroll();
 					});
-				}).call(this, loadingNode, scrollNode, below, keepScrollTo, results);
+				}).call(this, loadingNode, scrollNode, below, keepScrollTo, results, preload.rows);
 				preload = preload.previous;
 			}
 		}

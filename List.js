@@ -399,6 +399,61 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 				}while((next = next.nextSibling) && next.rowIndex != rowIndex);
 			}
 		},
+		_observeResults: function(results, rows, options){
+			// add an observer to results
+			var self = this;
+			var observerIndex = this.observers.push(results.observe(function(object, from, to){
+				var firstRow, nextNode;
+				// a change in the data took place
+				if(from > -1 && rows[from]){
+					// remove from old slot
+					row = rows.splice(from, 1)[0];
+					// check to make the sure the node is still there before we try to remove it, (in case it was moved to a different place in the DOM)
+					if(row.parentNode == options.container){
+						firstRow = row.nextSibling;
+						if(firstRow){ // it's possible for this to have been already removed if it is in overlapping query results
+							if(from != to){ // if from and to are identical, it is an in-place update and we don't want to alter the rowIndex at all
+								firstRow.rowIndex--; // adjust the rowIndex so adjustRowIndices has the right starting point
+							}
+						}
+						self.removeRow(row); // now remove
+					}
+					// the removal of rows could cause us to need to page in more items
+					if(self._processScroll){
+						self._processScroll();
+					}
+				}
+				if(to > -1){
+					// Add to new slot (either before an existing row, or at the end)
+					// First determine the DOM node that this should be placed before.
+					nextNode = rows[to];
+					if(!nextNode){
+						nextNode = rows[to - 1];
+						if(nextNode){
+							// Make sure to skip connected nodes, so we don't accidentally
+							// insert a row in between a parent and its children.
+							nextNode = (nextNode.connected || nextNode).nextSibling;
+						}
+					}
+					row = self.newRow(object, nextNode, to, options);
+
+					if(row){
+						row.observerIndex = observerIndex;
+						rows.splice(to, 0, row);
+						if(!firstRow || to < from){
+							// the inserted row is first, so we update firstRow to point to it
+							var previous = row.previousSibling;
+							// if we are not in sync with the previous row, roll the firstRow back one so adjustRowIndices can sync everything back up.
+							firstRow = !previous || previous.rowIndex + 1 == row.rowIndex || row.rowIndex == 0 ?
+								row : previous;
+						}
+					}
+					options.count++;
+				}
+				from != to && firstRow && self.adjustRowIndices(firstRow);
+			}, true)) - 1;
+			return observerIndex;
+		},
 		renderArray: function(results, beforeNode, options){
 			// summary:
 			//		This renders an array or collection of objects as rows in the grid, before the
@@ -411,59 +466,6 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 			
 			if(!beforeNode){
 				this._lastCollection = results;
-			}
-			if(results.observe){
-				// observe the results for changes
-				var observerIndex = this.observers.push(results.observe(function(object, from, to){
-					var firstRow, nextNode;
-					// a change in the data took place
-					if(from > -1 && rows[from]){
-						// remove from old slot
-						row = rows.splice(from, 1)[0];
-						// check to make the sure the node is still there before we try to remove it, (in case it was moved to a different place in the DOM)
-						if(row.parentNode == container){
-							firstRow = row.nextSibling;
-							if(firstRow){ // it's possible for this to have been already removed if it is in overlapping query results
-								if(from != to){ // if from and to are identical, it is an in-place update and we don't want to alter the rowIndex at all
-									firstRow.rowIndex--; // adjust the rowIndex so adjustRowIndices has the right starting point
-								}
-							}
-							self.removeRow(row); // now remove
-						}
-						// the removal of rows could cause us to need to page in more items
-						if(self._processScroll){
-							self._processScroll();
-						}
-					}
-					if(to > -1){
-						// Add to new slot (either before an existing row, or at the end)
-						// First determine the DOM node that this should be placed before.
-						nextNode = rows[to];
-						if(!nextNode){
-							nextNode = rows[to - 1];
-							if(nextNode){
-								// Make sure to skip connected nodes, so we don't accidentally
-								// insert a row in between a parent and its children.
-								nextNode = (nextNode.connected || nextNode).nextSibling;
-							}
-						}
-						row = self.newRow(object, nextNode, to, options);
-						
-						if(row){
-							row.observerIndex = observerIndex;
-							rows.splice(to, 0, row);
-							if(!firstRow || to < from){
-								// the inserted row is first, so we update firstRow to point to it
-								var previous = row.previousSibling;
-								// if we are not in sync with the previous row, roll the firstRow back one so adjustRowIndices can sync everything back up.
-								firstRow = !previous || previous.rowIndex + 1 == row.rowIndex || row.rowIndex == 0 ?
-									row : previous;
-							}
-						}
-						options.count++;
-					}
-					from != to && firstRow && self.adjustRowIndices(firstRow);
-				}, true)) - 1;
 			}
 			var rowsFragment = document.createDocumentFragment();
 			// now render the results
@@ -478,6 +480,10 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 					rows[i] = mapEach(results[i]);
 				}
 			}
+			if(results.observe && !options.dontObserve){
+				// observe the results for changes
+				var observerIndex = this._observeResults(results, rows, options);
+			}
 			var lastRow;
 			function mapEach(object){
 				lastRow = self.insertRow(object, rowsFragment, null, start++, options);
@@ -485,7 +491,7 @@ function(arrayUtil, kernel, declare, listen, has, miscUtil, TouchScroll, hasClas
 				return lastRow;
 			}
 			function whenDone(resolvedRows){
-				container = beforeNode ? beforeNode.parentNode : self.contentNode;
+				container = options.container = beforeNode ? beforeNode.parentNode : self.contentNode;
 				if(container){
 					container.insertBefore(rowsFragment, beforeNode || null);
 					lastRow = resolvedRows[resolvedRows.length - 1];
