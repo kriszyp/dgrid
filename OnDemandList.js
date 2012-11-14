@@ -102,7 +102,7 @@ return declare([List, _StoreMixin], {
 			this.preload = preload;
 		}
 		
-		var loadingNode = put(preloadNode, "-div.dgrid-loading"),
+		var results, loadingNode = put(preloadNode, "-div.dgrid-loading"),
 			innerNode = put(loadingNode, "div.dgrid-below");
 		innerNode.innerHTML = this.loadingMessage;
 		
@@ -122,10 +122,13 @@ return declare([List, _StoreMixin], {
 			options.dontObserve = true;
 			options.queryResults = results;
 			results = results.slice(0, this.minRowsPerPage);
-		}else{
-			options.start = 0;
-			options.count = this.minRowsPerPage;
-			var results = query(options);
+		}
+		// need to set these even if sliceable since they are used for row index counting
+		options.start = 0;
+		options.count = this.minRowsPerPage;
+		if(!results){
+			// not sliceable, need to do a query
+			results = query(options);
 		}
 		var self = this;
 		// render the result set
