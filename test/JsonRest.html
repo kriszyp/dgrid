@@ -25,7 +25,7 @@
 			require(["dgrid/List", "dgrid/OnDemandGrid","dgrid/Selection", "dgrid/editor", "dgrid/Keyboard", "dgrid/tree", "dojo/_base/declare", "dojo/store/JsonRest", "dojo/store/Observable", "dojo/store/Cache", "dojo/store/Memory", "dojo/domReady!"], 
 				function(List, Grid, Selection, editor, Keyboard, tree, declare, JsonRest, Observable, Cache, Memory){
 					var testStore = Observable(Cache(JsonRest({
-						target:"./data/rest.php?", 
+						target:"./data/rest.php?",
 						idProperty: "id",
 						query: function(query, options){
 							// have to manually adjust the query to get rid of the double ?? that trips php up
@@ -33,6 +33,10 @@
 								query = "parent=" + query.parent;
 							}
 							return JsonRest.prototype.query.call(this, query, options);
+						},
+						put: function(object){
+							// skip the request so the service doesn't need to handle it
+							return object;
 						}
 					}), Memory()));
 					testStore.getChildren = function(parent, options){
@@ -48,13 +52,17 @@
 					window.grid = new (declare([Grid, Selection, Keyboard]))({
 						store: testStore,
 						getBeforePut: false,
-						columns: columns
+						columns: columns,
+						noDataMessage: "No data!"
 					}, "grid");
 					deleteSelected = function(){
 						for(var i in grid.selection){
 							testStore.remove(i);
 						}
 					}
+					addNew = function(){
+						testStore.put({name: "new item"});
+					};
 				});
 				
 		</script>
@@ -63,6 +71,7 @@
 		<h2>A basic grid with JsonRest store</h2>
 		<div id="grid"></div>
 		<button onclick='deleteSelected()'>Delete Page</div>
+		<button onclick='addNew()'>Add Page</div>
 		<button onclick='grid.save();'>Save</div>
 		<button onclick='grid.revert();'>Revert</div>
 	</body>
