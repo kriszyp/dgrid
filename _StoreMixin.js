@@ -343,6 +343,7 @@ function(declare, lang, Deferred, listen, aspect, put){
 					// or there were no rows to render
 					resolvedRows = [];
 				}
+				resolvedRows.totalLength = resolvedResults.totalLength;
 				return resolvedRows;
 			});
 		},

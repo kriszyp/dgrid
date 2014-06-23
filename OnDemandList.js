@@ -135,7 +135,7 @@ return declare([List, _StoreMixin], {
 
 			// Render the result set
 			return self.renderCollection(resultsCollection, preloadNode, options).then(function(trs){
-				return Deferred.when(resultsCollection.total, function(total){
+				return Deferred.when(trs.totalLength, function(total){
 					var trCount = trs.length,
 						parentNode = preloadNode.parentNode,
 						noDataNode = self.noDataNode;
@@ -499,7 +499,7 @@ return declare([List, _StoreMixin], {
 								});
 							}
 
-							Deferred.when(rangeCollection.total, function(total){
+							Deferred.when(rows.totalLength, function(total){
 								if(!("queryLevel" in options)){
 									grid._total = total;
 								}
