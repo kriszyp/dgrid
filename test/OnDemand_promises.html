@@ -35,6 +35,11 @@
 		<h2>Grid with a dstore/RequestMemory store</h2>
 		<div id="grid4"></div>
 
+		<h2>Grid with a dstore/Rest+Cache store</h2>
+		<div id="grid5"></div>
+		<button onclick="addObject();">Add object</button>
+		<button onclick="refreshLastGrid();">Refresh</button>
+
 <script src="../../dojo/dojo.js" data-dojo-config="async: true"></script>
 
 <script>
@@ -51,10 +56,12 @@ require([
 	'dgrid/OnDemandGrid',
 	'dgrid/test/data/createAsyncStore',
 	'dstore/RequestMemory',
+	'dstore/Rest',
+	'dstore/Cache',
 	'dstore/legacy/StoreAdapter',
 	'dstore/Observable'
 ], function (declare, lang, Deferred, ItemFileReadStore, DataStore, LegacyMemory, QueryResults, OnDemandGrid,
-	createAsyncStore, RequestMemory, StoreAdapter, Observable) {
+	createAsyncStore, RequestMemory, Rest, Cache, StoreAdapter, Observable) {
 
 	var dataStore;
 	var names = [ 'sasquatch', 'foo', 'bar', 'zaphod', 'beeblebrox' ];
@@ -140,6 +147,18 @@ require([
 		columns: { id: 'id', name: 'name' },
 		collection: stores[3]
 	}, 'grid4'));
+	// Create a dstore Rest/Cache instance
+	stores.push(new (declare([Rest, Cache]))({ target: 'data/requestData.json' }));
+	grids.push(new OnDemandGrid({
+		columns: { id: 'id', name: 'name' },
+		collection: stores[4]
+	}, 'grid5'));
+	addObject = function(){
+		stores[4].put({name:'something new'});
+	};
+	refreshLastGrid = function(){
+		grids[4].refresh();
+	};
 });
 </script>
 
