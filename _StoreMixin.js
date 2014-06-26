@@ -371,6 +371,12 @@ function(declare, lang, Deferred, listen, aspect, put){
 							self._processScroll();
 						}
 					}
+					if(event.type === "remove"){
+						// need to reset this, in case it is later followed by an add,
+						// only update events should carry the row variable forward to the next
+						// event handler
+						row = null;
+					}
 				}),
 
 				collection.on("add, update", function(event){
@@ -418,6 +424,8 @@ function(declare, lang, Deferred, listen, aspect, put){
 							rows.splice(to, 0, row);
 						}
 					}
+					// need to reset row, so it doesn't get reused on the next event
+					row = null;
 				}),
 
 				collection.on("add, remove, update", function(event){
